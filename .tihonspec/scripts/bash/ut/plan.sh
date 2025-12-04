@@ -7,13 +7,18 @@
 # This script validates environment and outputs paths.
 # Framework detection and test scanning handled by AI via prompt.
 
-set -e
+set -eo pipefail
 
 # Source environment configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../common-env.sh" 2>/dev/null || {
-    echo "ERROR: Failed to load common-env.sh" >&2
+    echo "❌ Error: Failed to load common-env.sh" >&2
     exit 1
+}
+
+# JSON escape function for safe output
+json_escape() {
+    printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
 }
 
 # Parse arguments
@@ -41,9 +46,9 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [ -z "$FEATURE_ID" ]; then
-    echo "ERROR: Feature ID required" >&2
+    echo "❌ Error: Feature ID required" >&2
     echo "Usage: $0 <feature-id> [--review] [--force]" >&2
-    echo "Example: $0 pref-001" >&2
+    echo "💡 Example: $0 aa-001" >&2
     exit 1
 fi
 
@@ -66,14 +71,15 @@ UT_RULES_FILE="$REPO_ROOT/docs/rules/test/ut-rule.md"
 
 # Validate feature directory exists
 if [ ! -d "$FEATURE_DIR" ]; then
-    echo "ERROR: Feature directory not found: $FEATURE_DIR" >&2
+    echo "❌ Error: Feature directory not found: $FEATURE_DIR" >&2
+    echo "💡 Tip: Run /feature:specify $FEATURE_ID first" >&2
     exit 1
 fi
 
 # Validate spec.md exists
 if [ ! -f "$SPEC_FILE" ]; then
-    echo "ERROR: spec.md not found: $SPEC_FILE" >&2
-    echo "Run /feature.tihonspec $FEATURE_ID first" >&2
+    echo "❌ Error: spec.md not found: $SPEC_FILE" >&2
+    echo "💡 Tip: Run /feature:specify $FEATURE_ID first" >&2
     exit 1
 fi
 
@@ -97,19 +103,19 @@ if [ -f "$UT_RULES_FILE" ]; then
     HAS_UT_RULES="true"
 fi
 
-# Output JSON for AI
+# Output JSON for AI (with escaped paths for Windows compatibility)
 cat <<EOF
 {
-  "REPO_ROOT": "$REPO_ROOT",
-  "FEATURE_ID": "$FEATURE_ID",
-  "FEATURE_DIR": "$FEATURE_DIR",
-  "SPEC_FILE": "$SPEC_FILE",
-  "TEST_SPEC_FILE": "$TEST_SPEC_FILE",
-  "COVERAGE_FILE": "$COVERAGE_FILE",
-  "PLAN_FILE": "$PLAN_FILE",
-  "UT_RULES_FILE": "$UT_RULES_FILE",
+  "REPO_ROOT": "$(json_escape "$REPO_ROOT")",
+  "FEATURE_ID": "$(json_escape "$FEATURE_ID")",
+  "FEATURE_DIR": "$(json_escape "$FEATURE_DIR")",
+  "SPEC_FILE": "$(json_escape "$SPEC_FILE")",
+  "TEST_SPEC_FILE": "$(json_escape "$TEST_SPEC_FILE")",
+  "COVERAGE_FILE": "$(json_escape "$COVERAGE_FILE")",
+  "PLAN_FILE": "$(json_escape "$PLAN_FILE")",
+  "UT_RULES_FILE": "$(json_escape "$UT_RULES_FILE")",
   "HAS_UT_RULES": $HAS_UT_RULES,
-  "EXISTING_FILES": "$EXISTING_FILES",
+  "EXISTING_FILES": "$(json_escape "$EXISTING_FILES")",
   "MODE": "$MODE",
   "REVIEW_MODE": $REVIEW_MODE,
   "FORCE_MODE": $FORCE_MODE

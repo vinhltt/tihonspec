@@ -42,3 +42,6 @@ __pycache__/
 .venv/
 venv/
 plans/*
+.claude/*
+chatnote/*
+.tihonspec/.tihonspec.env
