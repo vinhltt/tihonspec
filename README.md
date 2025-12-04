@@ -1,6 +1,7 @@
-<p align="center" style="text-align:center">
-  <img src="assets/images/banner.png" style="width:500px">
+<p align="center">
+  <img src="assets/images/banner.png" width="500" alt="TihonSpec Banner">
 </p>
+
 # TihonSpec
 
 Specification-driven AI agent development toolkit
