@@ -1,0 +1,7 @@
+version: "1.0"
+installed_at: "2025-12-04T14:24:04Z"
+source_repo: "tihonspec"
+providers:
+  github:
+    enabled: true
+    files_count: 13
