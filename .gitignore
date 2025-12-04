@@ -1,0 +1,44 @@
+# MCP and AI tool configurations
+.mcp.json
+.gemini/settings.json
+
+# Editor and IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+*.cache
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Test artifacts and coverage
+coverage/
+.nyc_output/
+*.cover
+htmlcov/
+.pytest_cache/
+
+# Build artifacts (if any Node.js tools are used)
+node_modules/
+dist/
+build/
+
+# Python artifacts (if any Python scripts are used)
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+plans/*
