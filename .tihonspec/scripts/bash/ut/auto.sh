@@ -2,7 +2,7 @@
 #
 # auto.sh - Validate environment for /ut:auto command
 #
-# Usage: auto.sh <feature-id> [--skip-run] [--plan-only] [--force]
+# Usage: auto.sh <feature-id> [--project NAME] [--skip-run] [--plan-only] [--force]
 #
 # This script validates environment and outputs paths.
 # Workflow orchestration handled by AI via prompt.
@@ -23,12 +23,17 @@ json_escape() {
 
 # Parse arguments
 FEATURE_ID=""
+PROJECT_NAME=""
 SKIP_RUN="false"
 PLAN_ONLY="false"
 FORCE="false"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --project)
+            PROJECT_NAME="$2"
+            shift 2
+            ;;
         --skip-run)
             SKIP_RUN="true"
             shift
@@ -52,7 +57,7 @@ done
 
 if [ -z "$FEATURE_ID" ]; then
     echo "❌ Error: Feature ID required" >&2
-    echo "Usage: $0 <feature-id> [--skip-run] [--plan-only] [--force]" >&2
+    echo "Usage: $0 <feature-id> [--project NAME] [--skip-run] [--plan-only] [--force]" >&2
     echo "💡 Example: $0 aa-001" >&2
     exit 1
 fi
@@ -60,17 +65,64 @@ fi
 # Case-insensitive: convert to lowercase
 FEATURE_ID=$(echo "$FEATURE_ID" | tr '[:upper:]' '[:lower:]')
 
-# Get repository root
+# Get repository root (fallback)
 REPO_ROOT=$(get_repo_root)
 
 # Parse feature ID to get paths
 parsed=$(parse_feature_id "$FEATURE_ID") || exit 1
 IFS='|' read -r FOLDER TICKET FEATURE_DIR BRANCH_NAME <<< "$parsed"
 
-# Define paths (YAGNI: only what's needed for new simplified workflow)
+# Get workspace config (hierarchical model) with project targeting
+WORKSPACE_ROOT="$REPO_ROOT"
+DOCS_PATH="ai_docs"
+TARGET_ROOT=""
+TARGET_DOCS_PATH=""
+DETECT_SCRIPT="$SCRIPT_DIR/../detect-config.sh"
+
+if [[ -f "$DETECT_SCRIPT" ]]; then
+    # Pass --project flag if specified
+    if [[ -n "$PROJECT_NAME" ]]; then
+        CONFIG_JSON=$(bash "$DETECT_SCRIPT" --project "$PROJECT_NAME" 2>/dev/null || echo '{}')
+    else
+        CONFIG_JSON=$(bash "$DETECT_SCRIPT" 2>/dev/null || echo '{}')
+    fi
+
+    CONFIG_FOUND=$(echo "$CONFIG_JSON" | jq -r '.CONFIG_FOUND // false' 2>/dev/null)
+    if [[ "$CONFIG_FOUND" == "true" ]]; then
+        WORKSPACE_ROOT=$(echo "$CONFIG_JSON" | jq -r '.WORKSPACE_ROOT // empty' 2>/dev/null)
+        DOCS_PATH=$(echo "$CONFIG_JSON" | jq -r '.DOCS_PATH // "ai_docs"' 2>/dev/null)
+        [[ -z "$WORKSPACE_ROOT" ]] && WORKSPACE_ROOT="$REPO_ROOT"
+
+        # Check for project targeting
+        TARGET_PROJECT=$(echo "$CONFIG_JSON" | jq -r '.TARGET_PROJECT // empty' 2>/dev/null)
+        if [[ -n "$TARGET_PROJECT" && "$TARGET_PROJECT" != "null" ]]; then
+            TARGET_ROOT=$(echo "$CONFIG_JSON" | jq -r '.TARGET_PROJECT.root // empty' 2>/dev/null)
+            TARGET_DOCS_PATH=$(echo "$CONFIG_JSON" | jq -r '.TARGET_PROJECT.docs_path // empty' 2>/dev/null)
+        fi
+
+        # Check for error (project not found)
+        ERROR=$(echo "$CONFIG_JSON" | jq -r '.ERROR // empty' 2>/dev/null)
+        if [[ "$ERROR" == "project_not_found" ]]; then
+            AVAILABLE=$(echo "$CONFIG_JSON" | jq -r '.AVAILABLE_PROJECTS | join(", ")' 2>/dev/null)
+            echo "❌ Error: Project '$PROJECT_NAME' not found" >&2
+            echo "💡 Available projects: $AVAILABLE" >&2
+            exit 1
+        fi
+    fi
+fi
+
+# Determine output root (project root or workspace root)
+OUTPUT_ROOT="$WORKSPACE_ROOT"
+OUTPUT_DOCS_PATH="$DOCS_PATH"
+if [[ -n "$TARGET_ROOT" ]]; then
+    OUTPUT_ROOT="$TARGET_ROOT"
+    OUTPUT_DOCS_PATH="$TARGET_DOCS_PATH"
+fi
+
+# Define paths (using output root)
 SPEC_FILE="$FEATURE_DIR/spec.md"
 PLAN_FILE="$FEATURE_DIR/test-plan.md"
-UT_RULES_FILE="$REPO_ROOT/docs/rules/test/ut-rule.md"
+UT_RULES_FILE="$OUTPUT_ROOT/$OUTPUT_DOCS_PATH/rules/test/ut-rule.md"
 
 # Validate feature directory exists
 if [ ! -d "$FEATURE_DIR" ]; then
@@ -101,7 +153,7 @@ fi
 # Output JSON for AI (with escaped paths for Windows compatibility)
 cat <<EOF
 {
-  "REPO_ROOT": "$(json_escape "$REPO_ROOT")",
+  "WORKSPACE_ROOT": "$(json_escape "$WORKSPACE_ROOT")",
   "FEATURE_ID": "$(json_escape "$FEATURE_ID")",
   "FEATURE_DIR": "$(json_escape "$FEATURE_DIR")",
   "SPEC_FILE": "$(json_escape "$SPEC_FILE")",

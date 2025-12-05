@@ -6,10 +6,20 @@ Generate executable unit test code based on the UT plan. Creates test files with
 
 ---
 
+## Usage
+
+```bash
+/ut:generate {feature-id}                    # Generate tests
+/ut:generate {feature-id} --project {name}   # Target specific project
+```
+
+---
+
 ## Input
 
 - **ut-plan.md** - Test organization, coverage goals, mocking strategy
 - **ut-phase-*.md** - Phase files with test suites and cases
+- **ut-rule.md** - From project or workspace (based on --project flag)
 
 ---
 
@@ -30,15 +40,44 @@ Creates test files in project directory:
 
 ## Execution
 
-### Step 0: Run Bash Script
+### Step 0: Parse Arguments & Project Selection
+
+**Parse user input for project targeting**:
+1. Check if `--project NAME` in command args
+2. Check if user mentions project name in natural language
+3. If multi-project workspace and no project specified → Ask user which project
+
+**Run bash script with project flag**:
 
 ```bash
+# If project specified:
+bash .tihonspec/scripts/bash/ut/generate.sh <feature-id> --project {PROJECT_NAME}
+
+# Otherwise:
 bash .tihonspec/scripts/bash/ut/generate.sh <feature-id>
 ```
 
-Parse JSON output -> Store `FEATURE_DIR`, `UT_PLAN_FILE`
+Parse JSON output -> Store `FEATURE_DIR`, `UT_PLAN_FILE`, `UT_RULES_FILE`
 
 If error -> STOP and report to user
+
+---
+
+### Step 0.5: Load Project Context (Optional)
+
+1. Project context already loaded from Step 0 (via detect-config.sh with --project)
+2. **If CONFIG_FOUND is true**:
+   - **Test Framework**: Use METADATA.test_framework (vitest, jest, pytest, etc.)
+   - **Test Command**: Use COMMANDS.test for execution
+   - **Rules**: Load testing conventions from RULES_FILES
+   - **Language**: Use METADATA.language for syntax patterns
+4. **If PROJECT_CONTEXT.CONFIG_FOUND is false**: Auto-detect from project files (existing behavior)
+5. **If rules file not found**: Warning, continue
+
+**Project Context** (use in later steps):
+- Test Framework: {METADATA.test_framework}
+- Test Command: {COMMANDS.test}
+- Language: {METADATA.language}
 
 ---
 

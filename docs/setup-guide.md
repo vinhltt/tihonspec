@@ -88,7 +88,21 @@ your-project/
 
 ## Post-Installation
 
-### 1. Configure Environment
+### 1. Configure Workspace (Optional)
+
+Create `.tihonspec/tihonspec.yaml` for workspace configuration:
+
+```yaml
+version: "1.0"
+name: "my-project"
+
+docs:
+  path: "ai_docs"
+```
+
+See [Configuration Guide](./configuration-guide.md) for full reference.
+
+### 2. Configure Environment
 
 ```bash
 cd your-project/.tihonspec
@@ -96,7 +110,7 @@ cp .tihonspec.env.example .tihonspec.env
 # Edit .tihonspec.env with your settings
 ```
 
-### 2. Verify Installation
+### 3. Verify Installation
 
 **Claude Code:**
 ```bash
@@ -110,7 +124,7 @@ ls .claude/commands/ut/
 ls .github/prompts/
 ```
 
-### 3. Test Commands
+### 4. Test Commands
 
 **Claude Code:**
 ```

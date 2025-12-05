@@ -1,0 +1,33 @@
+# Example: Parent Workspace Configuration
+# Location: {workspace}/.tihonspec/tihonspec.yaml
+#
+# In hierarchical model, every config is a "workspace".
+# Parent workspace can define child projects for navigation and sync.
+
+version: "1.0"
+name: "my-workspace"
+
+# Documentation configuration
+docs:
+  path: "ai_docs"                    # Configurable: "docs", ".ai", etc.
+
+  # Optional: Sync settings
+  sync:
+    backup: true                     # Create backup before override
+    exclude:
+      - "*.draft.md"                 # Exclude draft files from sync
+      - ".local/**"                  # Exclude local-only docs
+
+# List of child projects (for navigation and sync)
+projects:
+  - name: "frontend"
+    path: "apps/frontend"
+  - name: "backend"
+    path: "apps/backend"
+  - name: "shared-lib"
+    path: "packages/shared"
+
+# Optional metadata
+metadata:
+  team: "platform"
+  language: "typescript"

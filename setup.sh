@@ -33,6 +33,7 @@ SOURCE_DIR="$SCRIPT_DIR/.tihonspec/commands"
 # CLI arguments
 TARGET_PATH="."
 INSTALL_ALL=false
+CONFIG_ONLY=false  # Config-only mode: create config, skip commands/scripts
 PREFIX=""  # Optional command prefix (e.g., "awz" → awz.feature.*, awz/feature/*)
 PROVIDERS=()  # Will be populated by install functions
 
@@ -96,14 +97,20 @@ OPTIONS:
   --all              Install all providers (Claude Code + GitHub Copilot)
   --target <path>    Target project directory (default: current directory)
   --prefix <name>    Add prefix to commands (e.g., "ths" → ths.feature.*, ths/feature/*)
+  --config-only      Config-only mode: create config, skip commands/scripts
   -h, --help         Show this help message
+
+MODES:
+  Workspace (default):    Full installation with commands, scripts, config
+  Config-only (--config-only):  Config file only, inherits parent workspace commands
 
 EXAMPLES:
   ./setup.sh                           # Interactive menu
-  ./setup.sh --all                     # Install all to current directory
+  ./setup.sh --all                     # Full workspace install
   ./setup.sh --all --target /my/project
   ./setup.sh --all --prefix ths        # Commands: ths.feature.*, ths/feature/*
-  ./setup.sh --target ~/projects/app   # Interactive menu for specific target
+  ./setup.sh --config-only             # Config only (for child projects)
+  ./setup.sh --config-only --target apps/frontend
 
 EOF
 }
@@ -119,6 +126,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --all)
       INSTALL_ALL=true
+      shift
+      ;;
+    --config-only)
+      CONFIG_ONLY=true
       shift
       ;;
     --target)
@@ -216,8 +227,95 @@ install_tihonspec_core() {
     count=$((count + 1))
   fi
 
+  # Copy docs folder (configuration guide, etc.)
+  if [[ -d "$source_base/docs" ]]; then
+    log_info "  Copying docs..."
+    cp -r "$source_base/docs" "$target_base/" || die "Failed to copy docs"
+    local docs_count
+    docs_count=$(find "$target_base/docs" -type f | wc -l | tr -d ' ')
+    log_success "    ✓ docs/ ($docs_count files)"
+    count=$((count + docs_count))
+  fi
+
   log_success "TihonSpec core: $count files installed"
   echo ""
+}
+
+# =============================================================================
+# Configuration Generation
+# =============================================================================
+
+# Generate tihonspec.yaml configuration file (only if not exists)
+generate_tihonspec_config() {
+    local target="$1"
+    local config_type="$2"  # "workspace" or "project"
+    local project_name="$3"
+
+    local config_file="$target/.tihonspec/tihonspec.yaml"
+    local template_file="$SCRIPT_DIR/.tihonspec/tihonspec.yaml.template"
+
+    # Skip if config already exists (don't override user settings)
+    if [[ -f "$config_file" ]]; then
+        log_info "Config exists, skipping: $config_file"
+        return 0
+    fi
+
+    ensure_dir "$(dirname "$config_file")"
+
+    # Try to copy from template first, fallback to inline generation
+    if [[ -f "$template_file" ]]; then
+        cp "$template_file" "$config_file"
+        # Update name and type in copied template
+        if command -v sed &>/dev/null; then
+            sed -i.bak "s/^name: .*/name: \"$project_name\"/" "$config_file"
+            sed -i.bak "s/^type: .*/type: \"$config_type\"/" "$config_file"
+            rm -f "$config_file.bak"
+        fi
+        log_success "Created from template: $config_file"
+    else
+        # Fallback: generate inline
+        if [[ "$config_type" == "workspace" ]]; then
+            cat > "$config_file" <<EOF
+version: "1.0"
+name: "$project_name"
+type: "workspace"
+
+docs:
+  path: "ai_docs"
+  rules: []
+
+rules: []
+
+commands: {}
+
+projects: []
+EOF
+        else
+            cat > "$config_file" <<EOF
+version: "1.0"
+name: "$project_name"
+type: "project"
+
+docs:
+  path: "ai_docs"
+  rules: []
+
+metadata:
+  language: ""
+  framework: ""
+  package_manager: ""
+  test_framework: ""
+
+rules: []
+
+commands:
+  test: ""
+  build: ""
+  lint: ""
+EOF
+        fi
+        log_success "Created: $config_file"
+    fi
 }
 
 # =============================================================================
@@ -532,7 +630,8 @@ main() {
   echo ""
 
   # In interactive mode, ask for target path and prefix FIRST
-  if [[ "$INSTALL_ALL" != "true" ]]; then
+  # Skip interactive prompts in config-only mode or when --all is specified
+  if [[ "$INSTALL_ALL" != "true" ]] && [[ "$CONFIG_ONLY" != "true" ]]; then
     ask_target_path
     ask_prefix
   fi
@@ -541,13 +640,39 @@ main() {
   log_info "Target: $TARGET_PATH"
   echo ""
 
-  # Validate environment and check self-copy
+  # Check for config-only mode
+  if [[ "$CONFIG_ONLY" == "true" ]]; then
+    log_info "Config-only mode: Creating config..."
+    echo ""
+
+    # Get project name from directory
+    local project_name
+    project_name=$(basename "$TARGET_PATH")
+
+    # Only create config, skip core and providers
+    generate_tihonspec_config "$TARGET_PATH" "project" "$project_name"
+
+    echo ""
+    echo "=============================================="
+    log_success "Config created!"
+    echo "=============================================="
+    log_info "Edit .tihonspec/tihonspec.yaml to configure settings"
+    return 0
+  fi
+
+  # Validate environment and check self-copy (workspace mode)
   validate_environment
   check_self_copy
 
   # Always install TihonSpec core first (scripts, templates, memory)
   echo ""
   install_tihonspec_core
+
+  # Generate workspace config after core installation
+  local workspace_name
+  workspace_name=$(basename "$TARGET_PATH")
+  generate_tihonspec_config "$TARGET_PATH" "workspace" "$workspace_name"
+  echo ""
 
   # Determine installation method for providers
   if [[ "$INSTALL_ALL" == "true" ]]; then

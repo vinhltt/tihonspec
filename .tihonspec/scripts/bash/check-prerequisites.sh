@@ -24,6 +24,48 @@
 
 set -e
 
+# Check for required tools
+check_required_tools() {
+    local missing_tools=()
+
+    if ! command -v yq &>/dev/null; then
+        missing_tools+=("yq")
+    fi
+
+    if ! command -v jq &>/dev/null; then
+        missing_tools+=("jq")
+    fi
+
+    if [[ ${#missing_tools[@]} -gt 0 ]]; then
+        echo "ERROR: Missing required tools: ${missing_tools[*]}" >&2
+        echo "" >&2
+        echo "Install instructions:" >&2
+        for tool in "${missing_tools[@]}"; do
+            case "$tool" in
+                yq)
+                    echo "  yq:" >&2
+                    echo "    macOS:   brew install yq" >&2
+                    echo "    Linux:   wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 && chmod +x /usr/local/bin/yq" >&2
+                    echo "    Windows: choco install yq" >&2
+                    ;;
+                jq)
+                    echo "  jq:" >&2
+                    echo "    macOS:   brew install jq" >&2
+                    echo "    Linux:   apt-get install jq" >&2
+                    echo "    Windows: choco install jq" >&2
+                    ;;
+            esac
+        done
+        return 1
+    fi
+    return 0
+}
+
+# Run tool check early (before parsing arguments)
+if ! check_required_tools; then
+    exit 1
+fi
+
 # Parse command line arguments
 JSON_MODE=false
 REQUIRE_TASKS=false

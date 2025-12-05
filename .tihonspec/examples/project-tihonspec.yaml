@@ -1,0 +1,19 @@
+# Example: Child Workspace (Project) Configuration
+# Location: {project}/.tihonspec/tihonspec.yaml
+#
+# In hierarchical model, every config is a "workspace".
+# Child workspace has its own ai_docs/ folder.
+
+version: "1.0"
+name: "frontend"
+
+# Documentation - stored in {project}/ai_docs/
+docs:
+  path: "ai_docs"
+
+# Optional metadata (helps AI understand context)
+metadata:
+  language: "typescript"
+  framework: "react"
+  package_manager: "pnpm"
+  test_framework: "vitest"

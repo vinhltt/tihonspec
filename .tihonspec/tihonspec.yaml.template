@@ -1,0 +1,24 @@
+# TihonSpec Configuration
+# Every project is a workspace - can contain sub-workspaces
+# Docs: .tihonspec/docs/configuration-guide.md
+
+version: "1.0"
+name: "${PROJECT_NAME}"
+
+# Documentation settings
+docs:
+  path: "ai_docs"          # Docs stored in {workspace_root}/{docs.path}/
+
+  # Optional: Sync settings (for multi-workspace setups)
+  # sync:
+  #   backup: true           # Create backup before override (default: true)
+  #   exclude:               # Patterns to exclude from sync
+  #     - "*.draft.md"
+  #     - ".local/**"
+
+# Optional: Define child projects (for parent workspaces)
+# projects:
+#   - name: "frontend"
+#     path: "apps/frontend"
+#   - name: "backend"
+#     path: "apps/backend"

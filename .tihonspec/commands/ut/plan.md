@@ -9,9 +9,10 @@ Generate unit test plan using templates. Creates `ut-plan.md` + phase files for 
 ## Usage
 
 ```bash
-/ut:plan {feature-id}           # Create new plan
-/ut:plan {feature-id} --review  # Review and update existing plan
-/ut:plan {feature-id} --force   # Overwrite without asking
+/ut:plan {feature-id}                         # Create new plan
+/ut:plan {feature-id} --project {name}        # Target specific project
+/ut:plan {feature-id} --review                # Review and update existing plan
+/ut:plan {feature-id} --force                 # Overwrite without asking
 ```
 
 ---
@@ -24,6 +25,10 @@ Creates in `.tihonspec/feature/{feature-id}/`:
 2. **ut-phase-01-setup.md** - Test setup phase
 3. **ut-phase-02-{name}.md** - P1 critical tests
 4. **ut-phase-03-{name}.md** - P2-P3 tests (if needed)
+
+UT rules file location depends on project targeting:
+- **With --project**: `{project-root}/{docs-path}/rules/test/ut-rule.md`
+- **Without**: `{workspace-root}/{docs-path}/rules/test/ut-rule.md`
 
 ---
 
@@ -38,15 +43,44 @@ Creates in `.tihonspec/feature/{feature-id}/`:
 
 ## Execution
 
-### Step 0: Run Bash Script
+### Step 0: Parse Arguments & Project Selection
+
+**Parse user input for project targeting**:
+1. Check if `--project NAME` in command args
+2. Check if user mentions project name in natural language (e.g., "for project frontend")
+3. If multi-project workspace and no project specified → Ask user which project
+
+**Run bash script with project flag**:
 
 ```bash
+# If project specified:
+bash .tihonspec/scripts/bash/ut/plan.sh <feature-id> --project {PROJECT_NAME}
+
+# Otherwise:
 bash .tihonspec/scripts/bash/ut/plan.sh <feature-id>
 ```
 
-Parse JSON output -> Store `FEATURE_DIR`, `SPEC_FILE`, `MODE`
+Parse JSON output -> Store `FEATURE_DIR`, `SPEC_FILE`, `MODE`, `UT_RULES_FILE`
 
 If error -> STOP and report to user
+
+---
+
+### Step 0.5: Load Project Context (Optional)
+
+1. Project context already loaded from Step 0 (via detect-config.sh with --project)
+2. **If CONFIG_FOUND is true**:
+   - **Test Framework**: Use METADATA.test_framework (vitest, jest, pytest, etc.)
+   - **Test Command**: Use COMMANDS.test for execution
+   - **Rules**: Load testing conventions from RULES_FILES
+   - **Language**: Use METADATA.language for syntax patterns
+4. **If PROJECT_CONTEXT.CONFIG_FOUND is false**: Auto-detect from project files (existing behavior)
+5. **If rules file not found**: Warning, continue
+
+**Project Context** (use in later steps):
+- Test Framework: {METADATA.test_framework}
+- Test Command: {COMMANDS.test}
+- Language: {METADATA.language}
 
 ---
 
@@ -62,7 +96,7 @@ If missing -> STOP: "Templates not found. Check `.tihonspec/templates/ut/`"
 
 ### Step 2: Load UT Rules (If Available)
 
-**Check**: `docs/rules/test/ut-rule.md`
+**Check**: `{DOCS_PATH}/rules/test/ut-rule.md` (use DOCS_PATH from Step 0.5, default: `ai_docs`)
 
 - **Found** -> Read and apply rules (naming, coverage, mocking)
 - **Not Found** -> Ask: "Run `/ut:create-rules` first?" or continue with defaults

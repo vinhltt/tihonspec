@@ -71,6 +71,24 @@ You are updating the project constitution at `.tihonspec/memory/constitution.md`
 - Proceed to Step 1 only if task ID valid
 - Use task ID to locate feature files in `.tihonspec/{folder}/{task-id}/`
 
+### Step 0.5: Load Project Context (Optional)
+
+1. Run: `bash .tihonspec/scripts/bash/detect-config.sh`
+2. Parse JSON output into PROJECT_CONTEXT
+3. **If PROJECT_CONTEXT.CONFIG_FOUND is true**:
+   - Store PROJECT_NAME, PROJECT_PATH, METADATA for context
+   - Read each file in RULES_FILES array
+   - Apply INLINE_RULES to generation guidelines
+   - Use METADATA (language, framework) for tech-specific guidance
+4. **If PROJECT_CONTEXT.CONFIG_FOUND is false**: Continue with defaults (backward compatible)
+5. **If rules file not found**: Warning "Rule file not found: {path}", continue
+
+**Project Context** (use in later steps):
+- Project: {PROJECT_NAME}
+- Language: {METADATA.language}
+- Framework: {METADATA.framework}
+- Rules: Applied from RULES_FILES and INLINE_RULES
+
 Follow this execution flow:
 
 1. Load the existing constitution template at `.tihonspec/memory/constitution.md`.

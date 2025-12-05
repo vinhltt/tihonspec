@@ -8,21 +8,55 @@ Generate project-wide unit testing standards (`ut-rule.md`). One-time setup defi
 
 ## Output
 
-Creates `docs/rules/test/ut-rule.md`
+Creates `{OUTPUT_ROOT}/{OUTPUT_DOCS_PATH}/rules/test/ut-rule.md`
+- **With --project**: Project-specific path (e.g., `apps/frontend/ai_docs/rules/test/ut-rule.md`)
+- **Without --project**: Workspace path (e.g., `ai_docs/rules/test/ut-rule.md`)
 
 ---
 
 ## Execution
 
-### Step 0: Run Bash Script
+### Step 0: Parse Arguments & Project Selection
+
+**Parse user input for project targeting**:
+1. Check if `--project NAME` in command args
+2. Check if user mentions project name in natural language (e.g., "for project frontend")
+3. If multi-project workspace detected (PROJECTS array not empty) and no project specified:
+   - Ask user: "Which project?" with AskUserQuestion
+   - Options: List from PROJECTS[].name
+
+**Run bash script with project flag**:
 
 ```bash
+# If project specified or detected:
+bash .tihonspec/scripts/bash/ut/create-rules.sh --project {PROJECT_NAME}
+
+# Otherwise (standalone workspace):
 bash .tihonspec/scripts/bash/ut/create-rules.sh
 ```
 
-Parse JSON output → Store `RULES_FILE`, `TEMPLATE_FILE`, `MODE`
+Parse JSON output → Store `RULES_FILE`, `TEMPLATE_FILE`, `MODE`, `OUTPUT_ROOT`, `PROJECTS`
 
 If `MODE` = "exists" → Ask: Update / Replace / Cancel
+
+---
+
+### Step 0.5: Load Project Context (Optional)
+
+1. Run: `bash .tihonspec/scripts/bash/detect-config.sh`
+2. Parse JSON output into PROJECT_CONTEXT
+3. **If PROJECT_CONTEXT.CONFIG_FOUND is true**:
+   - **Test Framework**: Use METADATA.test_framework (vitest, jest, pytest, etc.)
+   - **Test Command**: Use COMMANDS.test for execution
+   - **Rules**: Load testing conventions from RULES_FILES
+   - **Language**: Use METADATA.language for syntax patterns
+4. **If PROJECT_CONTEXT.CONFIG_FOUND is false**: Auto-detect from project files (existing behavior)
+5. **If rules file not found**: Warning, continue
+
+**Project Context** (use in later steps):
+- Test Framework: {METADATA.test_framework}
+- Test Command: {COMMANDS.test}
+- Language: {METADATA.language}
 
 ---
 
@@ -113,7 +147,7 @@ If `MODE` = "exists" → Ask: Update / Replace / Cancel
 
 **Output**:
 ```
-UT Rules created: docs/rules/test/ut-rule.md
+UT Rules created: {RULES_FILE}
 Language: {language}
 Framework: {name} {version}
 Next: /ut:plan {feature-id}

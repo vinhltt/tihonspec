@@ -234,5 +234,46 @@ run_validation_hook() {
     fi
 }
 
+# Load workspace configuration and export as env vars (hierarchical model)
+load_workspace_config() {
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local detect_script="$script_dir/detect-config.sh"
+
+    # Silent continue if script doesn't exist (backward compatible)
+    if [[ ! -f "$detect_script" ]]; then
+        return 0
+    fi
+
+    # Run detect-config.sh and capture output
+    local config_json
+    config_json=$(bash "$detect_script" 2>/dev/null)
+
+    # Silent continue if no output
+    if [[ -z "$config_json" ]]; then
+        return 0
+    fi
+
+    # Export as environment variables (hierarchical model)
+    export TIHONSPEC_WORKSPACE_ROOT=$(echo "$config_json" | jq -r '.WORKSPACE_ROOT // empty')
+    export TIHONSPEC_WORKSPACE_NAME=$(echo "$config_json" | jq -r '.WORKSPACE_NAME // empty')
+    export TIHONSPEC_DOCS_PATH=$(echo "$config_json" | jq -r '.DOCS_PATH // "ai_docs"')
+    export TIHONSPEC_CONFIG_FOUND=$(echo "$config_json" | jq -r '.CONFIG_FOUND // "false"')
+
+    # Store full JSON for scripts that need it
+    export TIHONSPEC_CONFIG_JSON="$config_json"
+
+    # Debug output if enabled
+    if [[ "${TIHONSPEC_DEBUG:-false}" == "true" ]]; then
+        echo "[workspace] Configuration loaded:" >&2
+        echo "  WORKSPACE_ROOT: $TIHONSPEC_WORKSPACE_ROOT" >&2
+        echo "  WORKSPACE_NAME: $TIHONSPEC_WORKSPACE_NAME" >&2
+        echo "  DOCS_PATH: $TIHONSPEC_DOCS_PATH" >&2
+        echo "  CONFIG_FOUND: $TIHONSPEC_CONFIG_FOUND" >&2
+    fi
+}
+
 # Auto-load environment on source
 load_feature_env
+
+# Also load workspace config if available
+load_workspace_config 2>/dev/null || true
