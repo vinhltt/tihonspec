@@ -1,5 +1,5 @@
 # Example: Parent Workspace Configuration
-# Location: {workspace}/.tihonspec/tihonspec.yaml
+# Location: {workspace}/.tihonspec/.tihonspec.yaml
 #
 # In hierarchical model, every config is a "workspace".
 # Parent workspace can define child projects for navigation and sync.

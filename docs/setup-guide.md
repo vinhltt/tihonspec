@@ -90,7 +90,7 @@ your-project/
 
 ### 1. Configure Workspace (Optional)
 
-Create `.tihonspec/tihonspec.yaml` for workspace configuration:
+Create `.tihonspec/.tihonspec.yaml` for workspace configuration:
 
 ```yaml
 version: "1.0"

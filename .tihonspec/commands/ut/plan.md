@@ -66,6 +66,38 @@ If error -> STOP and report to user
 
 ---
 
+### Step 0.1: Check UT Rules
+
+**Run check-rules script**:
+
+```bash
+# If project specified:
+bash .tihonspec/scripts/bash/ut/check-rules.sh --project {PROJECT_NAME}
+
+# Otherwise:
+bash .tihonspec/scripts/bash/ut/check-rules.sh
+```
+
+Parse JSON output → Store `EXISTS`, `RULES_FILE`, `FRAMEWORK`
+
+**If EXISTS = false**:
+- Show warning:
+  ```
+  ⚠️ UT Rules not found: {RULES_FILE}
+  ```
+- Ask via AskUserQuestion:
+  - **Option 1**: "Run `/ut:create-rules` first" (recommended)
+  - **Option 2**: "Continue with defaults"
+
+- If Option 1 → STOP, instruct to run create-rules
+- If Option 2 → Continue with framework auto-detection
+
+**If EXISTS = true**:
+- Log: "✓ Using rules: {RULES_FILE}"
+- Store FRAMEWORK for later steps
+
+---
+
 ### Step 0.5: Load Project Context (Optional)
 
 1. Project context already loaded from Step 0 (via detect-config.sh with --project)
@@ -94,12 +126,12 @@ If missing -> STOP: "Templates not found. Check `.tihonspec/templates/ut/`"
 
 ---
 
-### Step 2: Load UT Rules (If Available)
+### Step 2: Load UT Rules
 
-**Check**: `{DOCS_PATH}/rules/test/ut-rule.md` (use DOCS_PATH from Step 0.5, default: `ai_docs`)
+**Check**: Rules already validated in Step 0.1
 
-- **Found** -> Read and apply rules (naming, coverage, mocking)
-- **Not Found** -> Ask: "Run `/ut:create-rules` first?" or continue with defaults
+- **If EXISTS = true from Step 0.1** -> Read `{RULES_FILE}` and apply rules (naming, coverage, mocking)
+- **If EXISTS = false** -> User chose to continue with defaults in Step 0.1
 
 ---
 

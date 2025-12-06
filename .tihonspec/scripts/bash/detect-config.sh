@@ -42,7 +42,7 @@ find_config_file() {
     local depth=0
 
     while [[ "$current_dir" != "/" ]] && [[ $depth -lt $MAX_SEARCH_DEPTH ]]; do
-        local config_file="$current_dir/.tihonspec/tihonspec.yaml"
+        local config_file="$current_dir/.tihonspec/.tihonspec.yaml"
 
         if [[ -f "$config_file" ]]; then
             # Found! Set workspace root and return config path

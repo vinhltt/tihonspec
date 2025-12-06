@@ -63,6 +63,42 @@ If error -> STOP and report to user
 
 ---
 
+### Step 0.1: Validate UT Rules (Required)
+
+**Run check-rules script**:
+
+```bash
+# If project specified:
+bash .tihonspec/scripts/bash/ut/check-rules.sh --project {PROJECT_NAME}
+
+# Otherwise:
+bash .tihonspec/scripts/bash/ut/check-rules.sh
+```
+
+Parse JSON output → Store `EXISTS`, `RULES_FILE`, `FRAMEWORK`, `COVERAGE_TARGET`
+
+**If EXISTS = false**:
+- Show error:
+  ```
+  ❌ UT Rules Required
+  =====================
+  Cannot generate tests without UT rules.
+
+  Expected: {RULES_FILE}
+
+  💡 Run these commands first:
+     1. /ut:create-rules --project {PROJECT_NAME}
+     2. /ut:generate {feature-id} --project {PROJECT_NAME}
+  ```
+- **STOP** - Do not continue
+
+**If EXISTS = true**:
+- Log: "✓ Rules loaded: {RULES_FILE}"
+- Store FRAMEWORK, COVERAGE_TARGET for later steps
+- Continue to Step 1
+
+---
+
 ### Step 0.5: Load Project Context (Optional)
 
 1. Project context already loaded from Step 0 (via detect-config.sh with --project)
@@ -72,7 +108,7 @@ If error -> STOP and report to user
    - **Rules**: Load testing conventions from RULES_FILES
    - **Language**: Use METADATA.language for syntax patterns
 4. **If PROJECT_CONTEXT.CONFIG_FOUND is false**: Auto-detect from project files (existing behavior)
-5. **If rules file not found**: Warning, continue
+5. **If rules file not found**: Already handled in Step 0.1 (error, stopped)
 
 **Project Context** (use in later steps):
 - Test Framework: {METADATA.test_framework}

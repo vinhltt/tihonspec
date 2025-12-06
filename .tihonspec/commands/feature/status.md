@@ -95,7 +95,7 @@ Displays to terminal:
 
 4. **Validate task_id format**:
    - Must match pattern: `[folder/]prefix-number`
-   - Prefix must be in `.feature.env` TIHONSPEC_PREFIX_LIST
+   - Prefix must be in `.tihonspec.env` TIHONSPEC_PREFIX_LIST
    - Examples:
      - ✅ `/feature.status pref-001` → task_id: `pref-001`
      - ✅ `/feature.status PREF-001` → task_id: `pref-001` (case-insensitive)

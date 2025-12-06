@@ -72,7 +72,7 @@ CURRENT_CONFIG=$(bash "$DETECT_SCRIPT" 2>/dev/null || echo '{}')
 CONFIG_FOUND=$(echo "$CURRENT_CONFIG" | jq -r '.CONFIG_FOUND // false')
 
 if [[ "$CONFIG_FOUND" != "true" ]]; then
-    echo "ERROR: No tihonspec.yaml found" >&2
+    echo "ERROR: No .tihonspec.yaml found" >&2
     exit 1
 fi
 
@@ -88,7 +88,7 @@ find_parent_workspace() {
     local max_depth=10
 
     while [[ "$current_dir" != "/" ]] && [[ $depth -lt $max_depth ]]; do
-        local config_file="$current_dir/.tihonspec/tihonspec.yaml"
+        local config_file="$current_dir/.tihonspec/.tihonspec.yaml"
         if [[ -f "$config_file" ]]; then
             echo "$current_dir"
             return 0
@@ -160,7 +160,7 @@ sync_to_parent() {
     local parent_docs_path="ai_docs"
 
     # Get parent's docs path from config
-    local parent_config="$parent_root/.tihonspec/tihonspec.yaml"
+    local parent_config="$parent_root/.tihonspec/.tihonspec.yaml"
     if [[ -f "$parent_config" ]]; then
         parent_docs_path=$(yq eval '.docs.path // "ai_docs"' "$parent_config" 2>/dev/null || echo "ai_docs")
     fi
@@ -212,7 +212,7 @@ sync_from_parent() {
     local parent_docs_path="ai_docs"
 
     # Get parent's docs path from config
-    local parent_config="$parent_root/.tihonspec/tihonspec.yaml"
+    local parent_config="$parent_root/.tihonspec/.tihonspec.yaml"
     if [[ -f "$parent_config" ]]; then
         parent_docs_path=$(yq eval '.docs.path // "ai_docs"' "$parent_config" 2>/dev/null || echo "ai_docs")
     fi
@@ -302,7 +302,7 @@ EOF
         # Check if project has docs
         if [[ -d "$project_docs" ]]; then
             # Get project's docs path from config
-            local project_config="$project_full_path/.tihonspec/tihonspec.yaml"
+            local project_config="$project_full_path/.tihonspec/.tihonspec.yaml"
             local project_docs_path="ai_docs"
             if [[ -f "$project_config" ]]; then
                 project_docs_path=$(yq eval '.docs.path // "ai_docs"' "$project_config" 2>/dev/null || echo "ai_docs")

@@ -25,7 +25,7 @@ Display all projects configured in the workspace with their status and paths.
 ### Step 2: Load Workspace Config
 
 1. Navigate to workspace root
-2. Read `.tihonspec/tihonspec.yaml`
+2. Read `.tihonspec/.tihonspec.yaml`
 3. Extract `projects` array
 
 ### Step 3: Scan Projects
@@ -33,7 +33,7 @@ Display all projects configured in the workspace with their status and paths.
 For each project in `projects` array:
 
 1. Check if path exists
-2. Check if `.tihonspec/tihonspec.yaml` exists in project
+2. Check if `.tihonspec/.tihonspec.yaml` exists in project
 3. If project config exists:
    - Load and merge with workspace
    - Get metadata, rules count

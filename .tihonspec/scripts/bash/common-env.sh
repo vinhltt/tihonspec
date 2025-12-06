@@ -17,20 +17,8 @@ get_repo_root() {
 load_feature_env() {
     local repo_root=$(get_repo_root)
 
-    # Determine which env file to load
-    local env_name="${TIHONSPEC_ENV:-default}"
-    local env_file="$repo_root/.tihonspec/.feature.env"
-
-    # If TIHONSPEC_ENV is set, try environment-specific file
-    if [[ -n "$TIHONSPEC_ENV" ]]; then
-        local specific_env="$repo_root/.tihonspec/.feature.env.$TIHONSPEC_ENV"
-        if [[ -f "$specific_env" ]]; then
-            env_file="$specific_env"
-            echo "[feature] Loading environment: $TIHONSPEC_ENV" >&2
-        else
-            echo "[feature] Warning: $TIHONSPEC_ENV config not found, using default" >&2
-        fi
-    fi
+    # Single config file: .tihonspec/.tihonspec.env
+    local env_file="$repo_root/.tihonspec/.tihonspec.env"
 
     # Set defaults (backward compatible - same as hardcoded values)
     export TIHONSPEC_PREFIX_LIST="${TIHONSPEC_PREFIX_LIST:-aa}"
@@ -83,11 +71,11 @@ validate_prefix() {
         return 0
     fi
 
-    # Case-insensitive comparison
-    local prefix_lower="${prefix,,}"
+    # Case-insensitive comparison (compatible with bash 3.x)
+    local prefix_lower=$(echo "$prefix" | tr '[:upper:]' '[:lower:]')
 
     for allowed in $allowed_prefixes; do
-        local allowed_lower="${allowed,,}"
+        local allowed_lower=$(echo "$allowed" | tr '[:upper:]' '[:lower:]')
         if [[ "$prefix_lower" == "$allowed_lower" ]]; then
             return 0
         fi

@@ -47,7 +47,7 @@ You are updating the project constitution at `.tihonspec/memory/constitution.md`
 
 3. **Validate task ID format**:
    - Must match pattern: `[folder/]{prefix}-number`
-   - `{prefix}` = value from `.feature.env` TIHONSPEC_PREFIX_LIST
+   - `{prefix}` = value from `.tihonspec.env` TIHONSPEC_PREFIX_LIST
    - Examples (assuming prefix=pref):
      - ✅ `/feature.constitution {prefix}-001` → e.g., `pref-001`
      - ✅ `/feature.constitution hotfix/{prefix}-123` → e.g., `hotfix/pref-123`

@@ -245,14 +245,14 @@ install_tihonspec_core() {
 # Configuration Generation
 # =============================================================================
 
-# Generate tihonspec.yaml configuration file (only if not exists)
+# Generate .tihonspec.yaml configuration file (only if not exists)
 generate_tihonspec_config() {
     local target="$1"
     local config_type="$2"  # "workspace" or "project"
     local project_name="$3"
 
-    local config_file="$target/.tihonspec/tihonspec.yaml"
-    local template_file="$SCRIPT_DIR/.tihonspec/tihonspec.yaml.template"
+    local config_file="$target/.tihonspec/.tihonspec.yaml"
+    local template_file="$SCRIPT_DIR/.tihonspec/.tihonspec.yaml.template"
 
     # Skip if config already exists (don't override user settings)
     if [[ -f "$config_file" ]]; then
@@ -656,7 +656,7 @@ main() {
     echo "=============================================="
     log_success "Config created!"
     echo "=============================================="
-    log_info "Edit .tihonspec/tihonspec.yaml to configure settings"
+    log_info "Edit .tihonspec/.tihonspec.yaml to configure settings"
     return 0
   fi
 

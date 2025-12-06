@@ -4,7 +4,7 @@ description: Initialize a new project configuration in the current directory
 
 ## Purpose
 
-Create a new `tihonspec.yaml` configuration file for the current project.
+Create a new `.tihonspec.yaml` configuration file for the current project.
 
 ## Usage
 
@@ -22,7 +22,7 @@ Create a new `tihonspec.yaml` configuration file for the current project.
 
 ### Step 2: Check Existing Config
 
-1. Check if `.tihonspec/tihonspec.yaml` exists
+1. Check if `.tihonspec/.tihonspec.yaml` exists
 2. If exists:
    - Show current config summary
    - Ask: "Config exists. Overwrite? (y/n)"
@@ -60,7 +60,7 @@ Framework detection:
 
 ### Step 5: Generate Config
 
-Create `.tihonspec/tihonspec.yaml`:
+Create `.tihonspec/.tihonspec.yaml`:
 
 ```yaml
 version: "1.0"
@@ -98,7 +98,7 @@ Use DOCS_PATH from workspace config if available, otherwise default to `ai_docs`
 Project initialized: {project_name}
 
 Created:
-  - .tihonspec/tihonspec.yaml
+  - .tihonspec/.tihonspec.yaml
   - {DOCS_PATH}/
   - {DOCS_PATH}/rules.md
 
@@ -107,7 +107,7 @@ Detected:
   - Framework: {framework}
 
 Next steps:
-  1. Edit .tihonspec/tihonspec.yaml to configure project
+  1. Edit .tihonspec/.tihonspec.yaml to configure project
   2. Edit {DOCS_PATH}/rules.md to add project rules
   3. Run /project.list to verify workspace integration
 ```

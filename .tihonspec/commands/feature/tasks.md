@@ -80,7 +80,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 4. **Validate task_id format**:
    - Must match pattern: `[folder/]prefix-number`
-   - Prefix must be in `.feature.env` TIHONSPEC_PREFIX_LIST
+   - Prefix must be in `.tihonspec.env` TIHONSPEC_PREFIX_LIST
    - Examples:
      - ✅ `/feature.tasks pref-001` → task_id: `pref-001`
      - ✅ `/feature.tasks PREF-001` → task_id: `pref-001` (case-insensitive)

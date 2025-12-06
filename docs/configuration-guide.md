@@ -2,7 +2,7 @@
 
 ## Quick Start
 
-Create `.tihonspec/tihonspec.yaml` in your project root:
+Create `.tihonspec/.tihonspec.yaml` in your project root:
 
 ```yaml
 version: "1.0"
@@ -124,7 +124,7 @@ metadata:
 ```
 my-project/
 ├── .tihonspec/
-│   └── tihonspec.yaml
+│   └── .tihonspec.yaml
 ├── ai_docs/                    # docs.path
 │   ├── rules/
 │   │   └── test/
@@ -139,7 +139,7 @@ my-project/
 ```
 my-workspace/
 ├── .tihonspec/
-│   └── tihonspec.yaml          # Parent config
+│   └── .tihonspec.yaml          # Parent config
 ├── ai_docs/                    # Parent docs
 │   ├── architecture.md         # Workspace-level docs
 │   ├── business-overview.md
@@ -152,20 +152,20 @@ my-workspace/
 ├── apps/
 │   ├── frontend/               # Child workspace
 │   │   ├── .tihonspec/
-│   │   │   └── tihonspec.yaml
+│   │   │   └── .tihonspec.yaml
 │   │   └── ai_docs/            # Child's own docs
 │   │       └── rules/test/ut-rule.md
 │   │
 │   └── backend/                # Child workspace
 │       ├── .tihonspec/
-│       │   └── tihonspec.yaml
+│       │   └── .tihonspec.yaml
 │       └── ai_docs/
 │           └── rules/test/ut-rule.md
 │
 └── packages/
     └── shared/
         ├── .tihonspec/
-        │   └── tihonspec.yaml
+        │   └── .tihonspec.yaml
         └── ai_docs/
 ```
 
@@ -210,10 +210,10 @@ TihonSpec finds config by walking up from current directory:
                               ↑ Start here
 /workspace/apps/frontend/src/components/  (no config)
 /workspace/apps/frontend/src/             (no config)
-/workspace/apps/frontend/                 ← Found! .tihonspec/tihonspec.yaml
+/workspace/apps/frontend/                 ← Found! .tihonspec/.tihonspec.yaml
 ```
 
-The nearest `tihonspec.yaml` determines the current workspace context.
+The nearest `.tihonspec.yaml` determines the current workspace context.
 
 ---
 
@@ -237,7 +237,7 @@ Either:
 
 ### Q: Can I have nested workspaces?
 
-Yes! Each folder with `.tihonspec/tihonspec.yaml` is its own workspace.
+Yes! Each folder with `.tihonspec/.tihonspec.yaml` is its own workspace.
 
 ```
 company/                  # Level 1 workspace
@@ -311,7 +311,7 @@ $ /ut:create-rules
 Each project can have its own docs path:
 
 ```yaml
-# Parent workspace: .tihonspec/tihonspec.yaml
+# Parent workspace: .tihonspec/.tihonspec.yaml
 version: "1.0"
 name: "my-workspace"
 

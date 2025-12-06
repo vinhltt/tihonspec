@@ -90,7 +90,7 @@ Identify inconsistencies, duplications, ambiguities, and underspecified items ac
 
 4. **Validate task_id format**:
    - Must match pattern: `[folder/]prefix-number`
-   - Prefix must be in `.feature.env` TIHONSPEC_PREFIX_LIST
+   - Prefix must be in `.tihonspec.env` TIHONSPEC_PREFIX_LIST
    - Examples:
      - ✅ `/feature.analyze pref-001` → task_id: `pref-001`
      - ✅ `/feature.analyze PREF-001` → task_id: `pref-001` (case-insensitive)
