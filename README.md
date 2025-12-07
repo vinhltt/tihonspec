@@ -87,6 +87,8 @@ cd tihonspec
 | Option | Description |
 |--------|-------------|
 | `--all` | Install all providers (Claude + Copilot) |
+| `--claude` | Install Claude Code only |
+| `--github` | Install GitHub Copilot only |
 | `--target <path>` | Target project directory |
 | `--prefix <name>` | Add prefix to commands (e.g., `ths`) |
 | `--config-only` | Config file only, inherits parent commands |
