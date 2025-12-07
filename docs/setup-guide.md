@@ -5,19 +5,51 @@ Hướng dẫn cài đặt TihonSpec cho project mới.
 ## Quick Start
 
 ```bash
-# Clone TihonSpec repo
-git clone https://github.com/your-org/tihonspec.git
-cd tihonspec
-
-# Run installer (interactive mode)
-./setup.sh
+# Remote installation (recommended)
+curl -fsSL https://raw.githubusercontent.com/vinhltt/tihonspec/main/install.sh | bash
 ```
 
 ## Installation Methods
 
-### 1. Interactive Mode (Recommended)
+### 1. Remote Installation (Recommended)
+
+Install directly from GitHub without cloning:
 
 ```bash
+# One-liner (interactive mode)
+curl -fsSL https://raw.githubusercontent.com/vinhltt/tihonspec/main/install.sh | bash
+
+# Install all providers to specific path
+curl -fsSL https://raw.githubusercontent.com/vinhltt/tihonspec/main/install.sh | bash -s -- --all --target /path/to/project
+
+# With prefix
+curl -fsSL https://raw.githubusercontent.com/vinhltt/tihonspec/main/install.sh | bash -s -- --all --prefix ths
+
+# Config-only mode (child projects)
+curl -fsSL https://raw.githubusercontent.com/vinhltt/tihonspec/main/install.sh | bash -s -- --config-only --target /path/to/project
+```
+
+**Using wget (if curl unavailable):**
+```bash
+wget -qO- https://raw.githubusercontent.com/vinhltt/tihonspec/main/install.sh | bash
+```
+
+**Install specific version:**
+```bash
+# Replace 'main' with tag name (e.g., v1.0.0)
+curl -fsSL https://raw.githubusercontent.com/vinhltt/tihonspec/v1.0.0/install.sh | bash
+```
+
+### 2. Local Installation
+
+Clone repo and run installer:
+
+```bash
+# Clone TihonSpec repo
+git clone https://github.com/vinhltt/tihonspec.git
+cd tihonspec
+
+# Run installer (interactive mode)
 ./setup.sh
 ```
 
@@ -25,8 +57,6 @@ Script sẽ hỏi:
 1. **Target path** - Đường dẫn project cần cài đặt
 2. **Prefix** (optional) - Prefix cho commands (vd: `ths`)
 3. **Provider** - Chọn AI provider
-
-### 2. CLI Mode
 
 ```bash
 # Install all providers to specific path
@@ -43,6 +73,7 @@ Script sẽ hỏi:
 | `--all` | Install all providers (Claude + GitHub Copilot) |
 | `--target <path>` | Target project directory (default: current) |
 | `--prefix <name>` | Add prefix to commands |
+| `--config-only` | Config file only, inherits parent commands |
 | `-h, --help` | Show help |
 
 ## What Gets Installed
@@ -162,7 +193,28 @@ ls .github/prompts/
 
 ## Troubleshooting
 
-### Error: "Cannot install to source directory"
+### Remote Installation Issues
+
+#### Error: "Neither curl nor wget found"
+Install curl hoặc wget:
+- macOS: `brew install curl`
+- Ubuntu/Debian: `sudo apt install curl`
+
+#### Error: "Failed to download files"
+Kiểm tra kết nối internet. Nếu dùng proxy:
+```bash
+export https_proxy=http://proxy:port
+curl -fsSL ...
+```
+
+#### Network timeout
+Files download từ GitHub. Nếu chậm:
+1. Thử lại sau
+2. Dùng local installation thay thế
+
+### Local Installation Issues
+
+#### Error: "Cannot install to source directory"
 
 Bạn đang chạy setup.sh trong chính thư mục TihonSpec. Cần chỉ định target khác:
 
@@ -170,7 +222,7 @@ Bạn đang chạy setup.sh trong chính thư mục TihonSpec. Cần chỉ đị
 ./setup.sh --target /path/to/your/project
 ```
 
-### Error: "Source directory not found"
+#### Error: "Source directory not found"
 
 Đảm bảo bạn đang chạy từ thư mục gốc của TihonSpec repo:
 

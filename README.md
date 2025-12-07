@@ -39,11 +39,31 @@ Focus on **WHAT** users need, not **HOW** to implement.
 
 ## 🚀 Quick Start
 
-### Installation
+### Remote Installation (Recommended)
+
+Install directly from GitHub without cloning:
+
+```bash
+# One-liner installation
+curl -fsSL https://raw.githubusercontent.com/vinhltt/tihonspec/main/install.sh | bash
+
+# Install all providers to specific path
+curl -fsSL https://raw.githubusercontent.com/vinhltt/tihonspec/main/install.sh | bash -s -- --all --target /path/to/project
+
+# With prefix
+curl -fsSL https://raw.githubusercontent.com/vinhltt/tihonspec/main/install.sh | bash -s -- --all --target /path/to/project --prefix ths
+```
+
+**Using wget (if curl unavailable):**
+```bash
+wget -qO- https://raw.githubusercontent.com/vinhltt/tihonspec/main/install.sh | bash
+```
+
+### Local Installation
 
 ```bash
 # Clone TihonSpec
-git clone https://github.com/your-org/tihonspec.git
+git clone https://github.com/vinhltt/tihonspec.git
 cd tihonspec
 
 # Interactive installation
@@ -277,14 +297,30 @@ Or use `/ut.auto` for full automation.
 
 ## 🛠️ Troubleshooting
 
-### "Cannot install to source directory"
+### Remote Installation Issues
+
+#### "Neither curl nor wget found"
+Install curl or wget:
+- macOS: `brew install curl`
+- Ubuntu/Debian: `sudo apt install curl`
+
+#### "Failed to download files"
+Check internet connection and try again. If behind proxy:
+```bash
+export https_proxy=http://proxy:port
+curl -fsSL ...
+```
+
+### Local Installation Issues
+
+#### "Cannot install to source directory"
 
 Run from a different target:
 ```bash
 ./setup.sh --target /path/to/your/project
 ```
 
-### "Source directory not found"
+#### "Source directory not found"
 
 Ensure you're in the TihonSpec repo:
 ```bash
