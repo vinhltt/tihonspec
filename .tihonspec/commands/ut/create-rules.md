@@ -1,59 +1,65 @@
-# /ut:create-rules - Create Project UT Standards
+# /ut:create-rules - Create Sub-Workspace UT Standards
 
 ## Purpose
 
-Generate project-wide unit testing standards (`ut-rule.md`). One-time setup defining conventions, coverage, mocking.
+Generate sub-workspace-wide unit testing standards (`ut-rule.md`). One-time setup defining conventions, coverage, mocking.
 
 ---
 
 ## Output
 
 Creates `{OUTPUT_ROOT}/{OUTPUT_DOCS_PATH}/rules/test/ut-rule.md`
-- **With --project**: Project-specific path (e.g., `apps/frontend/ai_docs/rules/test/ut-rule.md`)
-- **Without --project**: Workspace path (e.g., `ai_docs/rules/test/ut-rule.md`)
+- **With --sub-workspace**: Sub-workspace-specific path (e.g., `apps/frontend/{docs.path}/rules/test/ut-rule.md`)
+- **Without --sub-workspace**: Workspace path (e.g., `{docs.path}/rules/test/ut-rule.md`)
+- **docs.path**: From `.tihonspec.yaml` config (default: `ai_docs`)
 
 ---
 
 ## Execution
 
-### Step 0: Parse Arguments & Project Selection
+### Step 0: Parse Arguments & Sub-Workspace Selection
 
-**Parse user input for project targeting**:
-1. Check if `--project NAME` in command args
-2. Check if user mentions project name in natural language (e.g., "for project frontend")
-3. If multi-project workspace detected (PROJECTS array not empty) and no project specified:
-   - Ask user: "Which project?" with AskUserQuestion
-   - Options: List from PROJECTS[].name
+**Parse user input for sub-workspace targeting**:
+1. Check if `--sub-workspace NAME` in command args
+2. Check if user mentions sub-workspace name in natural language (e.g., "for sub-workspace frontend")
+3. If multi-sub-workspace workspace detected (SUB_WORKSPACES array not empty) and no sub-workspace specified:
+   - Ask user: "Which sub-workspace?" with AskUserQuestion
+   - Options: List from SUB_WORKSPACES[].name
 
-**Run bash script with project flag**:
+**Run bash script with sub-workspace flag**:
 
 ```bash
-# If project specified or detected:
-bash .tihonspec/scripts/bash/ut/create-rules.sh --project {PROJECT_NAME}
+# If sub-workspace specified or detected:
+bash .tihonspec/scripts/bash/ut/create-rules.sh --sub-workspace {SUB_WORKSPACE_NAME}
 
 # Otherwise (standalone workspace):
 bash .tihonspec/scripts/bash/ut/create-rules.sh
 ```
 
-Parse JSON output → Store `RULES_FILE`, `TEMPLATE_FILE`, `MODE`, `OUTPUT_ROOT`, `PROJECTS`
+**CRITICAL: Handle script errors**:
+- **If exit code != 0**: **STOP IMMEDIATELY**. Do NOT continue or try workarounds.
+- **If "Required tools not installed"**: Show error message to user and STOP. User must install prerequisites first.
+- **If other errors**: Show error message and STOP.
+
+**On success only**: Parse JSON output → Store `RULES_FILE`, `TEMPLATE_FILE`, `MODE`, `OUTPUT_ROOT`, `SUB_WORKSPACES`
 
 If `MODE` = "exists" → Ask: Update / Replace / Cancel
 
 ---
 
-### Step 0.5: Load Project Context (Optional)
+### Step 0.5: Load Sub-Workspace Context (Optional)
 
 1. Run: `bash .tihonspec/scripts/bash/detect-config.sh`
-2. Parse JSON output into PROJECT_CONTEXT
-3. **If PROJECT_CONTEXT.CONFIG_FOUND is true**:
+2. Parse JSON output into SUB_WORKSPACE_CONTEXT
+3. **If SUB_WORKSPACE_CONTEXT.CONFIG_FOUND is true**:
    - **Test Framework**: Use METADATA.test_framework (vitest, jest, pytest, etc.)
    - **Test Command**: Use COMMANDS.test for execution
    - **Rules**: Load testing conventions from RULES_FILES
    - **Language**: Use METADATA.language for syntax patterns
-4. **If PROJECT_CONTEXT.CONFIG_FOUND is false**: Auto-detect from project files (existing behavior)
+4. **If SUB_WORKSPACE_CONTEXT.CONFIG_FOUND is false**: Auto-detect from sub-workspace files (existing behavior)
 5. **If rules file not found**: Warning, continue
 
-**Project Context** (use in later steps):
+**Sub-Workspace Context** (use in later steps):
 - Test Framework: {METADATA.test_framework}
 - Test Command: {COMMANDS.test}
 - Language: {METADATA.language}

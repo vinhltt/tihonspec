@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # TihonSpec Docs Synchronization
-# Sync docs between parent workspace and child projects
+# Sync docs between parent workspace and child sub-workspaces
 
 set -euo pipefail
 
@@ -18,26 +18,26 @@ json_escape() {
 }
 
 # Default values
-DIRECTION=""
 DRY_RUN="false"
 FORCE="false"
-ALL_PROJECTS="false"
+ALL_SUB_WORKSPACES="false"
+FROM_SUB_WORKSPACE=""
+TO_SUB_WORKSPACE=""
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --to-parent)
-            DIRECTION="to-parent"
-            shift
-            ;;
-        --from-parent)
-            DIRECTION="from-parent"
-            shift
-            ;;
         --all)
-            ALL_PROJECTS="true"
-            DIRECTION="to-parent"
+            ALL_SUB_WORKSPACES="true"
             shift
+            ;;
+        --from-sub-workspace)
+            FROM_SUB_WORKSPACE="$2"
+            shift 2
+            ;;
+        --to-sub-workspace)
+            TO_SUB_WORKSPACE="$2"
+            shift 2
             ;;
         --dry-run)
             DRY_RUN="true"
@@ -49,15 +49,23 @@ while [[ $# -gt 0 ]]; do
             ;;
         *)
             echo "Unknown option: $1" >&2
-            echo "Usage: $0 --to-parent|--from-parent|--all [--dry-run] [--force]" >&2
+            echo "Usage: $0 --all|--from-sub-workspace NAME|--to-sub-workspace NAME [--dry-run] [--force]" >&2
             exit 1
             ;;
     esac
 done
 
-if [[ -z "$DIRECTION" ]]; then
-    echo "ERROR: Direction required (--to-parent, --from-parent, or --all)" >&2
-    echo "Usage: $0 --to-parent|--from-parent|--all [--dry-run] [--force]" >&2
+if [[ "$ALL_SUB_WORKSPACES" != "true" ]] && [[ -z "$FROM_SUB_WORKSPACE" ]] && [[ -z "$TO_SUB_WORKSPACE" ]]; then
+    echo "ERROR: Specify --all, --from-sub-workspace NAME, or --to-sub-workspace NAME" >&2
+    echo "" >&2
+    echo "Usage:" >&2
+    echo "  $0 --all                        # Sync all sub-workspaces to parent" >&2
+    echo "  $0 --from-sub-workspace NAME    # Sync specific sub-workspace to parent" >&2
+    echo "  $0 --to-sub-workspace NAME      # Sync parent shared docs to sub-workspace" >&2
+    echo "" >&2
+    echo "Options:" >&2
+    echo "  --dry-run    Preview changes without syncing" >&2
+    echo "  --force      Overwrite existing files" >&2
     exit 1
 fi
 
@@ -81,24 +89,6 @@ CURRENT_WORKSPACE_NAME=$(echo "$CURRENT_CONFIG" | jq -r '.WORKSPACE_NAME')
 CURRENT_DOCS_PATH=$(echo "$CURRENT_CONFIG" | jq -r '.DOCS_PATH // "ai_docs"')
 SYNC_BACKUP=$(echo "$CURRENT_CONFIG" | jq -r '.DOCS_SYNC_BACKUP // true')
 
-# Find parent workspace (walk up from current workspace root)
-find_parent_workspace() {
-    local current_dir="$(dirname "$CURRENT_WORKSPACE_ROOT")"
-    local depth=0
-    local max_depth=10
-
-    while [[ "$current_dir" != "/" ]] && [[ $depth -lt $max_depth ]]; do
-        local config_file="$current_dir/.tihonspec/.tihonspec.yaml"
-        if [[ -f "$config_file" ]]; then
-            echo "$current_dir"
-            return 0
-        fi
-        current_dir="$(dirname "$current_dir")"
-        ((depth++)) || true
-    done
-
-    return 1
-}
 
 # Backup file with timestamp
 backup_file() {
@@ -154,165 +144,192 @@ sync_file() {
     fi
 }
 
-# Sync to parent (push all docs)
-sync_to_parent() {
-    local parent_root="$1"
-    local parent_docs_path="ai_docs"
+# Sync from sub-workspace to parent workspace docs
+sync_from_sub_workspace() {
+    local sub_workspace_name="$1"
+    local sub_workspaces
+    sub_workspaces=$(echo "$CURRENT_CONFIG" | jq -r '.SUB_WORKSPACES // []')
 
-    # Get parent's docs path from config
-    local parent_config="$parent_root/.tihonspec/.tihonspec.yaml"
-    if [[ -f "$parent_config" ]]; then
-        parent_docs_path=$(yq eval '.docs.path // "ai_docs"' "$parent_config" 2>/dev/null || echo "ai_docs")
+    # Find sub-workspace by name
+    local sub_workspace
+    sub_workspace=$(echo "$sub_workspaces" | jq -r --arg name "$sub_workspace_name" '.[] | select(.name == $name)')
+
+    if [[ -z "$sub_workspace" ]]; then
+        echo "ERROR: Sub-workspace '$sub_workspace_name' not found" >&2
+        local available
+        available=$(echo "$sub_workspaces" | jq -r '.[].name' | tr '\n' ', ' | sed 's/,$//')
+        echo "Available: $available" >&2
+        exit 1
     fi
 
-    local source_dir="$CURRENT_WORKSPACE_ROOT/$CURRENT_DOCS_PATH"
-    local target_dir="$parent_root/$parent_docs_path/projects/$CURRENT_WORKSPACE_NAME"
+    local sub_workspace_path=$(echo "$sub_workspace" | jq -r '.path')
+    local sub_workspace_full_path="$CURRENT_WORKSPACE_ROOT/$sub_workspace_path"
 
-    if [[ ! -d "$source_dir" ]]; then
-        echo "ERROR: Source docs directory not found: $source_dir" >&2
-        return 1
+    # Get sub-workspace's docs path from config
+    local sub_workspace_config="$sub_workspace_full_path/.tihonspec/.tihonspec.yaml"
+    local sub_workspace_docs_path="$CURRENT_DOCS_PATH"
+    if [[ -f "$sub_workspace_config" ]]; then
+        local config_docs_path
+        config_docs_path=$(yq eval '.docs.path // empty' "$sub_workspace_config" 2>/dev/null)
+        if [[ -n "$config_docs_path" ]]; then
+            sub_workspace_docs_path="$config_docs_path"
+        fi
+    fi
+    local sub_workspace_docs="$sub_workspace_full_path/$sub_workspace_docs_path"
+
+    if [[ ! -d "$sub_workspace_docs" ]]; then
+        echo "ERROR: No docs found for sub-workspace: $sub_workspace_name" >&2
+        echo "Expected: $sub_workspace_docs" >&2
+        exit 1
     fi
 
-    echo "Syncing: $source_dir -> $target_dir" >&2
+    local source_dir="$sub_workspace_docs"
+    local target_dir="$CURRENT_WORKSPACE_ROOT/$CURRENT_DOCS_PATH/sub-workspaces/$sub_workspace_name"
+
+    echo "Syncing sub-workspace: $sub_workspace_name" >&2
 
     local files_synced=0
-    local files_skipped=0
-    local backups_created=0
-
-    # Find and sync all files
     while IFS= read -r -d '' file; do
         local relative_path="${file#$source_dir/}"
         local target_file="$target_dir/$relative_path"
-
-        if sync_file "$file" "$target_file"; then
-            ((files_synced++)) || true
-        else
-            ((files_skipped++)) || true
-        fi
+        sync_file "$file" "$target_file" && ((files_synced++)) || true
     done < <(find "$source_dir" -type f -print0 2>/dev/null)
 
-    # Output JSON result
     cat <<EOF
 {
   "SUCCESS": true,
-  "DIRECTION": "to-parent",
-  "PROJECT_NAME": "$(json_escape "$CURRENT_WORKSPACE_NAME")",
+  "SUB_WORKSPACE": "$(json_escape "$sub_workspace_name")",
   "SOURCE": "$(json_escape "$source_dir")",
   "TARGET": "$(json_escape "$target_dir")",
   "FILES_SYNCED": $files_synced,
-  "FILES_SKIPPED": $files_skipped,
   "DRY_RUN": $DRY_RUN
 }
 EOF
 }
 
-# Sync from parent (pull/bootstrap)
-sync_from_parent() {
-    local parent_root="$1"
-    local parent_docs_path="ai_docs"
+# Sync from parent workspace to sub-workspace
+sync_to_sub_workspace() {
+    local sub_workspace_name="$1"
+    local sub_workspaces
+    sub_workspaces=$(echo "$CURRENT_CONFIG" | jq -r '.SUB_WORKSPACES // []')
 
-    # Get parent's docs path from config
-    local parent_config="$parent_root/.tihonspec/.tihonspec.yaml"
-    if [[ -f "$parent_config" ]]; then
-        parent_docs_path=$(yq eval '.docs.path // "ai_docs"' "$parent_config" 2>/dev/null || echo "ai_docs")
+    # Find sub-workspace by name
+    local sub_workspace
+    sub_workspace=$(echo "$sub_workspaces" | jq -r --arg name "$sub_workspace_name" '.[] | select(.name == $name)')
+
+    if [[ -z "$sub_workspace" ]]; then
+        echo "ERROR: Sub-workspace '$sub_workspace_name' not found" >&2
+        local available
+        available=$(echo "$sub_workspaces" | jq -r '.[].name' | tr '\n' ', ' | sed 's/,$//')
+        echo "Available: $available" >&2
+        exit 1
     fi
 
-    local source_dir="$parent_root/$parent_docs_path/projects/$CURRENT_WORKSPACE_NAME"
-    local target_dir="$CURRENT_WORKSPACE_ROOT/$CURRENT_DOCS_PATH"
+    local sub_workspace_path=$(echo "$sub_workspace" | jq -r '.path')
+    local sub_workspace_full_path="$CURRENT_WORKSPACE_ROOT/$sub_workspace_path"
+
+    # Get sub-workspace's docs path from config
+    local sub_workspace_config="$sub_workspace_full_path/.tihonspec/.tihonspec.yaml"
+    local sub_workspace_docs_path="$CURRENT_DOCS_PATH"
+    if [[ -f "$sub_workspace_config" ]]; then
+        local config_docs_path
+        config_docs_path=$(yq eval '.docs.path // empty' "$sub_workspace_config" 2>/dev/null)
+        if [[ -n "$config_docs_path" ]]; then
+            sub_workspace_docs_path="$config_docs_path"
+        fi
+    fi
+    local target_dir="$sub_workspace_full_path/$sub_workspace_docs_path"
+
+    # Source: parent's sub-workspaces/{name} folder (shared docs for this sub-workspace)
+    local source_dir="$CURRENT_WORKSPACE_ROOT/$CURRENT_DOCS_PATH/sub-workspaces/$sub_workspace_name"
 
     if [[ ! -d "$source_dir" ]]; then
-        echo "No docs found in parent for project: $CURRENT_WORKSPACE_NAME" >&2
+        echo "No shared docs found for sub-workspace: $sub_workspace_name" >&2
+        echo "Expected: $source_dir" >&2
         cat <<EOF
 {
   "SUCCESS": true,
-  "DIRECTION": "from-parent",
-  "PROJECT_NAME": "$(json_escape "$CURRENT_WORKSPACE_NAME")",
+  "DIRECTION": "to-sub-workspace",
+  "SUB_WORKSPACE": "$(json_escape "$sub_workspace_name")",
   "SOURCE": "$(json_escape "$source_dir")",
   "TARGET": "$(json_escape "$target_dir")",
   "FILES_SYNCED": 0,
-  "FILES_SKIPPED": 0,
-  "MESSAGE": "No docs found in parent",
+  "MESSAGE": "No shared docs found in parent",
   "DRY_RUN": $DRY_RUN
 }
 EOF
         return 0
     fi
 
-    echo "Syncing: $source_dir -> $target_dir" >&2
+    echo "Syncing to sub-workspace: $sub_workspace_name" >&2
 
     local files_synced=0
-    local files_skipped=0
-
-    # Find and sync all files
     while IFS= read -r -d '' file; do
         local relative_path="${file#$source_dir/}"
         local target_file="$target_dir/$relative_path"
-
-        if sync_file "$file" "$target_file"; then
-            ((files_synced++)) || true
-        else
-            ((files_skipped++)) || true
-        fi
+        sync_file "$file" "$target_file" && ((files_synced++)) || true
     done < <(find "$source_dir" -type f -print0 2>/dev/null)
 
-    # Output JSON result
     cat <<EOF
 {
   "SUCCESS": true,
-  "DIRECTION": "from-parent",
-  "PROJECT_NAME": "$(json_escape "$CURRENT_WORKSPACE_NAME")",
+  "DIRECTION": "to-sub-workspace",
+  "SUB_WORKSPACE": "$(json_escape "$sub_workspace_name")",
   "SOURCE": "$(json_escape "$source_dir")",
   "TARGET": "$(json_escape "$target_dir")",
   "FILES_SYNCED": $files_synced,
-  "FILES_SKIPPED": $files_skipped,
   "DRY_RUN": $DRY_RUN
 }
 EOF
 }
 
-# Sync all projects (from parent workspace)
-sync_all_projects() {
-    local projects
-    projects=$(echo "$CURRENT_CONFIG" | jq -r '.PROJECTS // []')
+# Sync all sub-workspaces (from parent workspace)
+sync_all_sub_workspaces() {
+    local sub_workspaces
+    sub_workspaces=$(echo "$CURRENT_CONFIG" | jq -r '.SUB_WORKSPACES // []')
 
-    if [[ "$projects" == "[]" ]] || [[ -z "$projects" ]]; then
-        echo "No projects defined in workspace config" >&2
+    if [[ "$sub_workspaces" == "[]" ]] || [[ -z "$sub_workspaces" ]]; then
+        echo "No sub-workspaces defined in workspace config" >&2
         cat <<EOF
 {
   "SUCCESS": true,
   "DIRECTION": "all",
-  "MESSAGE": "No projects defined",
-  "PROJECTS_SYNCED": 0
+  "MESSAGE": "No sub-workspaces defined",
+  "SUB_WORKSPACES_SYNCED": 0
 }
 EOF
         return 0
     fi
 
-    local projects_synced=0
+    local sub_workspaces_synced=0
     local results="[]"
 
-    # Iterate through projects
-    while IFS= read -r project; do
-        local project_name=$(echo "$project" | jq -r '.name')
-        local project_path=$(echo "$project" | jq -r '.path')
+    # Iterate through sub-workspaces
+    while IFS= read -r sub_workspace; do
+        local sub_workspace_name=$(echo "$sub_workspace" | jq -r '.name')
+        local sub_workspace_path=$(echo "$sub_workspace" | jq -r '.path')
 
-        local project_full_path="$CURRENT_WORKSPACE_ROOT/$project_path"
-        local project_docs="$project_full_path/ai_docs"
+        local sub_workspace_full_path="$CURRENT_WORKSPACE_ROOT/$sub_workspace_path"
 
-        # Check if project has docs
-        if [[ -d "$project_docs" ]]; then
-            # Get project's docs path from config
-            local project_config="$project_full_path/.tihonspec/.tihonspec.yaml"
-            local project_docs_path="ai_docs"
-            if [[ -f "$project_config" ]]; then
-                project_docs_path=$(yq eval '.docs.path // "ai_docs"' "$project_config" 2>/dev/null || echo "ai_docs")
+        # Get sub-workspace's docs path from config FIRST (before checking directory)
+        local sub_workspace_config="$sub_workspace_full_path/.tihonspec/.tihonspec.yaml"
+        local sub_workspace_docs_path="$CURRENT_DOCS_PATH"  # Inherit from workspace by default
+        if [[ -f "$sub_workspace_config" ]]; then
+            local config_docs_path
+            config_docs_path=$(yq eval '.docs.path // empty' "$sub_workspace_config" 2>/dev/null)
+            if [[ -n "$config_docs_path" ]]; then
+                sub_workspace_docs_path="$config_docs_path"
             fi
-            project_docs="$project_full_path/$project_docs_path"
+        fi
+        local sub_workspace_docs="$sub_workspace_full_path/$sub_workspace_docs_path"
 
-            local source_dir="$project_docs"
-            local target_dir="$CURRENT_WORKSPACE_ROOT/$CURRENT_DOCS_PATH/projects/$project_name"
+        # Check if sub-workspace has docs (using correct path from config)
+        if [[ -d "$sub_workspace_docs" ]]; then
 
-            echo "Syncing project: $project_name" >&2
+            local source_dir="$sub_workspace_docs"
+            local target_dir="$CURRENT_WORKSPACE_ROOT/$CURRENT_DOCS_PATH/sub-workspaces/$sub_workspace_name"
+
+            echo "Syncing sub-workspace: $sub_workspace_name" >&2
 
             local files_synced=0
             while IFS= read -r -d '' file; do
@@ -321,17 +338,17 @@ EOF
                 sync_file "$file" "$target_file" && ((files_synced++)) || true
             done < <(find "$source_dir" -type f -print0 2>/dev/null)
 
-            ((projects_synced++)) || true
+            ((sub_workspaces_synced++)) || true
         else
-            echo "[skip] No docs found for project: $project_name" >&2
+            echo "[skip] No docs found for sub-workspace: $sub_workspace_name" >&2
         fi
-    done < <(echo "$projects" | jq -c '.[]')
+    done < <(echo "$sub_workspaces" | jq -c '.[]')
 
     cat <<EOF
 {
   "SUCCESS": true,
   "DIRECTION": "all",
-  "PROJECTS_SYNCED": $projects_synced,
+  "SUB_WORKSPACES_SYNCED": $sub_workspaces_synced,
   "DRY_RUN": $DRY_RUN
 }
 EOF
@@ -339,35 +356,15 @@ EOF
 
 # Main execution
 main() {
-    if [[ "$ALL_PROJECTS" == "true" ]]; then
-        sync_all_projects
-        return
+    echo "Workspace: $CURRENT_WORKSPACE_ROOT ($CURRENT_WORKSPACE_NAME)" >&2
+
+    if [[ "$ALL_SUB_WORKSPACES" == "true" ]]; then
+        sync_all_sub_workspaces
+    elif [[ -n "$FROM_SUB_WORKSPACE" ]]; then
+        sync_from_sub_workspace "$FROM_SUB_WORKSPACE"
+    elif [[ -n "$TO_SUB_WORKSPACE" ]]; then
+        sync_to_sub_workspace "$TO_SUB_WORKSPACE"
     fi
-
-    # Find parent workspace
-    local parent_root
-    if ! parent_root=$(find_parent_workspace); then
-        echo "ERROR: No parent workspace found" >&2
-        cat <<EOF
-{
-  "SUCCESS": false,
-  "ERROR": "No parent workspace found"
-}
-EOF
-        exit 1
-    fi
-
-    echo "Parent workspace: $parent_root" >&2
-    echo "Current workspace: $CURRENT_WORKSPACE_ROOT ($CURRENT_WORKSPACE_NAME)" >&2
-
-    case "$DIRECTION" in
-        to-parent)
-            sync_to_parent "$parent_root"
-            ;;
-        from-parent)
-            sync_from_parent "$parent_root"
-            ;;
-    esac
 }
 
 main

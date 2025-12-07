@@ -1,0 +1,20 @@
+# Example: Sub-Workspace Configuration
+# Location: {sub-workspace}/.tihonspec/.tihonspec.yaml
+#
+# In hierarchical model, every config is a "workspace".
+# Sub-workspace has its own docs folder (inherits parent's docs.path if not specified).
+
+version: "1.0"
+name: "frontend"
+
+# Documentation - stored in {sub-workspace}/{docs.path}/
+# If omitted, inherits from parent workspace's docs.path
+docs:
+  path: "ai_docs"  # Override if different from parent, or omit to inherit
+
+# Optional metadata (helps AI understand context)
+metadata:
+  language: "typescript"
+  framework: "react"
+  package_manager: "pnpm"
+  test_framework: "vitest"

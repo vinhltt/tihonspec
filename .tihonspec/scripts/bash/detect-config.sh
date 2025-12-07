@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # TihonSpec Configuration Discovery
 # Finds nearest workspace config (hierarchical model - everything is a workspace)
-# Supports --project flag for multi-project workspace targeting
+# Supports --sub-workspace flag for multi-sub-workspace workspace targeting
 
 set -euo pipefail
 
@@ -11,28 +11,69 @@ readonly MAX_SEARCH_DEPTH=20
 # Store workspace root when found
 WORKSPACE_ROOT=""
 
-# Target project (from --project flag or auto-detected)
-TARGET_PROJECT_NAME=""
+# Target sub-workspace (from --sub-workspace flag or auto-detected)
+TARGET_SUB_WORKSPACE_NAME=""
 
-# Check prerequisites
+# Check prerequisites and offer to install missing tools
 check_prerequisites() {
+    local missing_tools=()
+
     if ! command -v yq &>/dev/null; then
-        echo "ERROR: yq is required but not installed" >&2
-        echo "Install with:" >&2
-        echo "  macOS:   brew install yq" >&2
-        echo "  Linux:   wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 && chmod +x /usr/local/bin/yq" >&2
-        echo "  Windows: choco install yq" >&2
-        exit 1
+        missing_tools+=("yq")
     fi
 
     if ! command -v jq &>/dev/null; then
-        echo "ERROR: jq is required but not installed" >&2
-        echo "Install with:" >&2
-        echo "  macOS:   brew install jq" >&2
-        echo "  Linux:   apt-get install jq" >&2
-        echo "  Windows: choco install jq" >&2
-        exit 1
+        missing_tools+=("jq")
     fi
+
+    # All tools present
+    if [[ ${#missing_tools[@]} -eq 0 ]]; then
+        return 0
+    fi
+
+    # Show missing tools
+    echo "ERROR: Required tools not installed: ${missing_tools[*]}" >&2
+    echo "" >&2
+
+    # Detect OS and show appropriate install command
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*)
+            # Windows (Git Bash/MSYS2)
+            echo "To install on Windows, choose one option:" >&2
+            echo "" >&2
+            echo "  Option 1: Run as Administrator and execute:" >&2
+            echo "    choco install ${missing_tools[*]} -y" >&2
+            echo "" >&2
+            echo "  Option 2: Install manually from:" >&2
+            for tool in "${missing_tools[@]}"; do
+                case "$tool" in
+                    jq) echo "    - jq: https://jqlang.github.io/jq/download/" >&2 ;;
+                    yq) echo "    - yq: https://github.com/mikefarah/yq/releases" >&2 ;;
+                esac
+            done
+            ;;
+        Darwin*)
+            # macOS
+            echo "Install with Homebrew:" >&2
+            echo "  brew install ${missing_tools[*]}" >&2
+            ;;
+        Linux*)
+            # Linux
+            echo "Install with:" >&2
+            for tool in "${missing_tools[@]}"; do
+                case "$tool" in
+                    jq) echo "  - jq: sudo apt-get install jq  (or yum/dnf)" >&2 ;;
+                    yq) echo "  - yq: sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 && sudo chmod +x /usr/local/bin/yq" >&2 ;;
+                esac
+            done
+            ;;
+        *)
+            echo "Please install: ${missing_tools[*]}" >&2
+            ;;
+    esac
+
+    echo "" >&2
+    exit 1
 }
 
 # Find nearest config file (hierarchical model - stop at first found)
@@ -81,38 +122,38 @@ parse_config() {
     echo "$yaml_content"
 }
 
-# Find project by name in PROJECTS array
-# Args: parsed_config, project_name
-# Returns: JSON object with project info or empty
-find_project_by_name() {
+# Find sub-workspace by name in SUB_WORKSPACES array
+# Args: parsed_config, sub_workspace_name
+# Returns: JSON object with sub-workspace info or empty
+find_sub_workspace_by_name() {
     local parsed="$1"
-    local project_name="$2"
+    local sub_workspace_name="$2"
 
-    echo "$parsed" | jq -r --arg name "$project_name" '
-        .projects // [] | map(select(.name == $name)) | .[0] // empty
+    echo "$parsed" | jq -r --arg name "$sub_workspace_name" '
+        .["sub-workspaces"] // [] | map(select(.name == $name)) | .[0] // empty
     '
 }
 
-# Auto-detect project from CWD
+# Auto-detect sub-workspace from CWD
 # Args: parsed_config
-# Returns: project name if CWD is inside a project path
-auto_detect_project() {
+# Returns: sub-workspace name if CWD is inside a sub-workspace path
+auto_detect_sub_workspace() {
     local parsed="$1"
     local cwd="$PWD"
 
-    # Get projects array
-    local projects
-    projects=$(echo "$parsed" | jq -c '.projects // []')
+    # Get sub-workspaces array
+    local sub_workspaces
+    sub_workspaces=$(echo "$parsed" | jq -c '.["sub-workspaces"] // []')
 
-    if [[ "$projects" == "[]" ]] || [[ "$projects" == "null" ]]; then
+    if [[ "$sub_workspaces" == "[]" ]] || [[ "$sub_workspaces" == "null" ]]; then
         return
     fi
 
-    # Check each project path
-    echo "$projects" | jq -r '.[] | "\(.name)|\(.path)"' | while IFS='|' read -r name path; do
-        local project_full_path="$WORKSPACE_ROOT/$path"
-        # Check if CWD starts with project path
-        if [[ "$cwd" == "$project_full_path"* ]]; then
+    # Check each sub-workspace path
+    echo "$sub_workspaces" | jq -r '.[] | "\(.name)|\(.path)"' | while IFS='|' read -r name path; do
+        local sub_workspace_full_path="$WORKSPACE_ROOT/$path"
+        # Check if CWD starts with sub-workspace path
+        if [[ "$cwd" == "$sub_workspace_full_path"* ]]; then
             echo "$name"
             return
         fi
@@ -140,42 +181,42 @@ output_json() {
         DOCS_SYNC_EXCLUDE: (.docs.sync.exclude // []),
         RULES_FILES: (.docs.rules // []),
         INLINE_RULES: (.rules // []),
-        PROJECTS: (.projects // []),
+        SUB_WORKSPACES: (.["sub-workspaces"] // []),
         METADATA: (.metadata // {}),
         COMMANDS: (.commands // {}),
         CONFIG_FOUND: true
     }')
 
-    # Handle project targeting
-    if [[ -n "$TARGET_PROJECT_NAME" ]]; then
-        local project_info
-        project_info=$(find_project_by_name "$parsed" "$TARGET_PROJECT_NAME")
+    # Handle sub-workspace targeting
+    if [[ -n "$TARGET_SUB_WORKSPACE_NAME" ]]; then
+        local sub_workspace_info
+        sub_workspace_info=$(find_sub_workspace_by_name "$parsed" "$TARGET_SUB_WORKSPACE_NAME")
 
-        if [[ -z "$project_info" ]]; then
-            # Project not found - return error with available projects
+        if [[ -z "$sub_workspace_info" ]]; then
+            # Sub-workspace not found - return error with available sub-workspaces
             local available
-            available=$(echo "$parsed" | jq -c '[.projects // [] | .[].name]')
-            echo "$output" | jq --arg req "$TARGET_PROJECT_NAME" --argjson avail "$available" \
-                '. + {TARGET_PROJECT: null, ERROR: "project_not_found", REQUESTED_PROJECT: $req, AVAILABLE_PROJECTS: $avail}'
+            available=$(echo "$parsed" | jq -c '[.["sub-workspaces"] // [] | .[].name]')
+            echo "$output" | jq --arg req "$TARGET_SUB_WORKSPACE_NAME" --argjson avail "$available" \
+                '. + {TARGET_SUB_WORKSPACE: null, ERROR: "sub_workspace_not_found", REQUESTED_SUB_WORKSPACE: $req, AVAILABLE_SUB_WORKSPACES: $avail}'
             return
         fi
 
-        # Project found - add TARGET_PROJECT info
-        local project_path project_root project_docs_path
-        project_path=$(echo "$project_info" | jq -r '.path')
-        project_root="$WORKSPACE_ROOT/$project_path"
-        # Use project's docs.path if specified, else inherit from workspace
-        project_docs_path=$(echo "$project_info" | jq -r '.docs.path // empty')
-        if [[ -z "$project_docs_path" ]]; then
-            project_docs_path=$(echo "$output" | jq -r '.DOCS_PATH')
+        # Sub-workspace found - add TARGET_SUB_WORKSPACE info
+        local sub_workspace_path sub_workspace_root sub_workspace_docs_path
+        sub_workspace_path=$(echo "$sub_workspace_info" | jq -r '.path')
+        sub_workspace_root="$WORKSPACE_ROOT/$sub_workspace_path"
+        # Use sub-workspace's docs.path if specified, else inherit from workspace
+        sub_workspace_docs_path=$(echo "$sub_workspace_info" | jq -r '.docs.path // empty')
+        if [[ -z "$sub_workspace_docs_path" ]]; then
+            sub_workspace_docs_path=$(echo "$output" | jq -r '.DOCS_PATH')
         fi
 
         output=$(echo "$output" | jq \
-            --arg name "$TARGET_PROJECT_NAME" \
-            --arg path "$project_path" \
-            --arg root "$project_root" \
-            --arg docs "$project_docs_path" \
-            '. + {TARGET_PROJECT: {name: $name, path: $path, root: $root, docs_path: $docs}}')
+            --arg name "$TARGET_SUB_WORKSPACE_NAME" \
+            --arg path "$sub_workspace_path" \
+            --arg root "$sub_workspace_root" \
+            --arg docs "$sub_workspace_docs_path" \
+            '. + {TARGET_SUB_WORKSPACE: {name: $name, path: $path, root: $root, docs_path: $docs}}')
     fi
 
     echo "$output"
@@ -185,22 +226,22 @@ output_json() {
 parse_args() {
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --project)
+            --sub-workspace)
                 if [[ -n "${2:-}" ]]; then
-                    TARGET_PROJECT_NAME="$2"
+                    TARGET_SUB_WORKSPACE_NAME="$2"
                     shift 2
                 else
-                    echo '{"CONFIG_FOUND": false, "ERROR": "missing_project_name"}' >&2
+                    echo '{"CONFIG_FOUND": false, "ERROR": "missing_sub_workspace_name"}' >&2
                     exit 1
                 fi
                 ;;
             --help|-h)
-                echo "Usage: detect-config.sh [--project NAME]"
+                echo "Usage: detect-config.sh [--sub-workspace NAME]"
                 echo ""
                 echo "Options:"
-                echo "  --project NAME    Target specific project in multi-project workspace"
+                echo "  --sub-workspace NAME    Target specific sub-workspace in workspace"
                 echo ""
-                echo "Output: JSON with workspace config and optional TARGET_PROJECT info"
+                echo "Output: JSON with workspace config and optional TARGET_SUB_WORKSPACE info"
                 exit 0
                 ;;
             *)
@@ -233,12 +274,12 @@ main() {
     local parsed
     parsed=$(parse_config "$config_file")
 
-    # Auto-detect project from CWD if not specified
-    if [[ -z "$TARGET_PROJECT_NAME" ]]; then
+    # Auto-detect sub-workspace from CWD if not specified
+    if [[ -z "$TARGET_SUB_WORKSPACE_NAME" ]]; then
         local detected
-        detected=$(auto_detect_project "$parsed")
+        detected=$(auto_detect_sub_workspace "$parsed")
         if [[ -n "$detected" ]]; then
-            TARGET_PROJECT_NAME="$detected"
+            TARGET_SUB_WORKSPACE_NAME="$detected"
         fi
     fi
 

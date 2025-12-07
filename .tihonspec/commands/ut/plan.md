@@ -10,7 +10,7 @@ Generate unit test plan using templates. Creates `ut-plan.md` + phase files for 
 
 ```bash
 /ut:plan {feature-id}                         # Create new plan
-/ut:plan {feature-id} --project {name}        # Target specific project
+/ut:plan {feature-id} --sub-workspace {name}  # Target specific sub-workspace
 /ut:plan {feature-id} --review                # Review and update existing plan
 /ut:plan {feature-id} --force                 # Overwrite without asking
 ```
@@ -26,8 +26,8 @@ Creates in `.tihonspec/feature/{feature-id}/`:
 3. **ut-phase-02-{name}.md** - P1 critical tests
 4. **ut-phase-03-{name}.md** - P2-P3 tests (if needed)
 
-UT rules file location depends on project targeting:
-- **With --project**: `{project-root}/{docs-path}/rules/test/ut-rule.md`
+UT rules file location depends on sub-workspace targeting:
+- **With --sub-workspace**: `{sub-workspace-root}/{docs-path}/rules/test/ut-rule.md`
 - **Without**: `{workspace-root}/{docs-path}/rules/test/ut-rule.md`
 
 ---
@@ -43,18 +43,18 @@ UT rules file location depends on project targeting:
 
 ## Execution
 
-### Step 0: Parse Arguments & Project Selection
+### Step 0: Parse Arguments & Sub-Workspace Selection
 
-**Parse user input for project targeting**:
-1. Check if `--project NAME` in command args
-2. Check if user mentions project name in natural language (e.g., "for project frontend")
-3. If multi-project workspace and no project specified → Ask user which project
+**Parse user input for sub-workspace targeting**:
+1. Check if `--sub-workspace NAME` in command args
+2. Check if user mentions sub-workspace name in natural language (e.g., "for sub-workspace frontend")
+3. If multi-sub-workspace workspace and no sub-workspace specified → Ask user which sub-workspace
 
-**Run bash script with project flag**:
+**Run bash script with sub-workspace flag**:
 
 ```bash
-# If project specified:
-bash .tihonspec/scripts/bash/ut/plan.sh <feature-id> --project {PROJECT_NAME}
+# If sub-workspace specified:
+bash .tihonspec/scripts/bash/ut/plan.sh <feature-id> --sub-workspace {SUB_WORKSPACE_NAME}
 
 # Otherwise:
 bash .tihonspec/scripts/bash/ut/plan.sh <feature-id>
@@ -71,8 +71,8 @@ If error -> STOP and report to user
 **Run check-rules script**:
 
 ```bash
-# If project specified:
-bash .tihonspec/scripts/bash/ut/check-rules.sh --project {PROJECT_NAME}
+# If sub-workspace specified:
+bash .tihonspec/scripts/bash/ut/check-rules.sh --sub-workspace {SUB_WORKSPACE_NAME}
 
 # Otherwise:
 bash .tihonspec/scripts/bash/ut/check-rules.sh
@@ -98,18 +98,18 @@ Parse JSON output → Store `EXISTS`, `RULES_FILE`, `FRAMEWORK`
 
 ---
 
-### Step 0.5: Load Project Context (Optional)
+### Step 0.5: Load Sub-Workspace Context (Optional)
 
-1. Project context already loaded from Step 0 (via detect-config.sh with --project)
+1. Sub-workspace context already loaded from Step 0 (via detect-config.sh with --sub-workspace)
 2. **If CONFIG_FOUND is true**:
    - **Test Framework**: Use METADATA.test_framework (vitest, jest, pytest, etc.)
    - **Test Command**: Use COMMANDS.test for execution
    - **Rules**: Load testing conventions from RULES_FILES
    - **Language**: Use METADATA.language for syntax patterns
-4. **If PROJECT_CONTEXT.CONFIG_FOUND is false**: Auto-detect from project files (existing behavior)
+4. **If SUB_WORKSPACE_CONTEXT.CONFIG_FOUND is false**: Auto-detect from sub-workspace files (existing behavior)
 5. **If rules file not found**: Warning, continue
 
-**Project Context** (use in later steps):
+**Sub-Workspace Context** (use in later steps):
 - Test Framework: {METADATA.test_framework}
 - Test Command: {COMMANDS.test}
 - Language: {METADATA.language}
@@ -343,6 +343,6 @@ Confirm -> Update files
 
 ## Related
 
-- `ut:create-rules` - One-time project setup
+- `ut:create-rules` - One-time sub-workspace setup
 - `ut:generate` - Generate test files from plan
 - `ut:auto` - Automated test workflow

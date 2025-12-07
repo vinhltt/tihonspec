@@ -2,14 +2,14 @@
 # Location: {workspace}/.tihonspec/.tihonspec.yaml
 #
 # In hierarchical model, every config is a "workspace".
-# Parent workspace can define child projects for navigation and sync.
+# Parent workspace can define child sub-workspaces for navigation and sync.
 
 version: "1.0"
 name: "my-workspace"
 
 # Documentation configuration
 docs:
-  path: "ai_docs"                    # Configurable: "docs", ".ai", etc.
+  path: "ai_docs"                    # Configurable: "awz_docs", "docs", ".ai", etc.
 
   # Optional: Sync settings
   sync:
@@ -18,8 +18,8 @@ docs:
       - "*.draft.md"                 # Exclude draft files from sync
       - ".local/**"                  # Exclude local-only docs
 
-# List of child projects (for navigation and sync)
-projects:
+# List of child sub-workspaces (for navigation and sync)
+sub-workspaces:
   - name: "frontend"
     path: "apps/frontend"
   - name: "backend"

@@ -2,33 +2,33 @@
 
 ## Purpose
 
-Check if UT rules (`ut-rule.md`) exist for project/workspace. Shows summary if found.
+Check if UT rules (`ut-rule.md`) exist for sub-workspace/workspace. Shows summary if found.
 
 ---
 
 ## Usage
 
 ```bash
-/ut:check-rules                    # Check workspace rules
-/ut:check-rules --project {name}   # Check project-specific rules
+/ut:check-rules                         # Check workspace rules
+/ut:check-rules --sub-workspace {name}  # Check sub-workspace-specific rules
 ```
 
 ---
 
 ## Execution
 
-### Step 0: Parse Arguments & Project Selection
+### Step 0: Parse Arguments & Sub-Workspace Selection
 
-**Parse user input for project targeting**:
-1. Check if `--project NAME` in command args
-2. Check if user mentions project name in natural language
-3. If multi-project workspace and no project specified → Ask user which project
+**Parse user input for sub-workspace targeting**:
+1. Check if `--sub-workspace NAME` in command args
+2. Check if user mentions sub-workspace name in natural language
+3. If multi-sub-workspace workspace and no sub-workspace specified → Ask user which sub-workspace
 
 **Run bash script**:
 
 ```bash
-# If project specified:
-bash .tihonspec/scripts/bash/ut/check-rules.sh --project {PROJECT_NAME}
+# If sub-workspace specified:
+bash .tihonspec/scripts/bash/ut/check-rules.sh --sub-workspace {SUB_WORKSPACE_NAME}
 
 # Otherwise:
 bash .tihonspec/scripts/bash/ut/check-rules.sh

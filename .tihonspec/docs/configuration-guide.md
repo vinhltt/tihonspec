@@ -32,7 +32,7 @@ That's it! TihonSpec will now use `ai_docs/` for all documentation.
 | `docs.path` | string | `"ai_docs"` | Path to docs folder |
 | `docs.sync.backup` | boolean | `true` | Create backup before override |
 | `docs.sync.exclude` | array | `[]` | Glob patterns to exclude from sync |
-| `projects` | array | `[]` | Child projects (for parent workspaces) |
+| `sub-workspaces` | array | `[]` | Child sub-workspaces (for parent workspaces) |
 | `metadata` | object | `{}` | Custom metadata |
 
 ---
@@ -49,7 +49,7 @@ docs:
   path: "ai_docs"
 ```
 
-### Workspace with Multiple Projects
+### Workspace with Multiple Sub-Workspaces
 
 ```yaml
 version: "1.0"
@@ -58,7 +58,7 @@ name: "my-workspace"
 docs:
   path: "ai_docs"
 
-projects:
+sub-workspaces:
   - name: "frontend"
     path: "apps/frontend"
 
@@ -134,7 +134,7 @@ my-project/
 └── src/
 ```
 
-### Workspace with Child Projects
+### Workspace with Child Sub-Workspaces
 
 ```
 my-workspace/
@@ -143,20 +143,20 @@ my-workspace/
 ├── ai_docs/                    # Parent docs
 │   ├── architecture.md         # Workspace-level docs
 │   ├── business-overview.md
-│   └── projects/               # Synced from children
+│   └── sub-workspaces/         # Synced from children
 │       ├── frontend/
 │       │   └── rules/test/ut-rule.md
 │       └── backend/
 │           └── rules/test/ut-rule.md
 │
 ├── apps/
-│   ├── frontend/               # Child workspace
+│   ├── frontend/               # Child sub-workspace
 │   │   ├── .tihonspec/
 │   │   │   └── .tihonspec.yaml
 │   │   └── ai_docs/            # Child's own docs
 │   │       └── rules/test/ut-rule.md
 │   │
-│   └── backend/                # Child workspace
+│   └── backend/                # Child sub-workspace
 │       ├── .tihonspec/
 │       │   └── .tihonspec.yaml
 │       └── ai_docs/
@@ -176,22 +176,22 @@ my-workspace/
 ### Push docs to parent workspace
 
 ```bash
-# From child project directory
-/project.sync to-parent
+# From child sub-workspace directory
+/sub-workspace:sync to-parent
 ```
 
 ### Pull docs from parent (bootstrap)
 
 ```bash
-# From child project directory
-/project.sync from-parent
+# From child sub-workspace directory
+/sub-workspace:sync from-parent
 ```
 
-### Sync all projects (from parent)
+### Sync all sub-workspaces (from parent)
 
 ```bash
 # From parent workspace directory
-/project.sync all
+/sub-workspace:sync all
 ```
 
 ### Options
@@ -225,14 +225,14 @@ No. Without config, TihonSpec uses defaults:
 - Docs path: `ai_docs`
 - Sync backup: enabled
 
-### Q: What's the difference between workspace and project?
+### Q: What's the difference between workspace and sub-workspace?
 
-None! In the hierarchical model, every config is a workspace. A "project" is just a workspace without child projects defined.
+None! In the hierarchical model, every config is a workspace. A "sub-workspace" is just a workspace without child sub-workspaces defined.
 
-### Q: How do I disable sync for a project?
+### Q: How do I disable sync for a sub-workspace?
 
 Either:
-1. Don't add it to parent's `projects[]` list
+1. Don't add it to parent's `sub-workspaces[]` list
 2. Exclude its docs with `sync.exclude` patterns
 
 ### Q: Can I have nested workspaces?
@@ -256,47 +256,47 @@ Example: `my-project/ai_docs/rules/test/ut-rule.md`
 
 ### Q: How does sync work?
 
-- **to-parent**: Copies ALL files from `{child}/ai_docs/` to `{parent}/ai_docs/projects/{child-name}/`
-- **from-parent**: Copies files from `{parent}/ai_docs/projects/{child-name}/` to `{child}/ai_docs/`
+- **to-parent**: Copies ALL files from `{child}/ai_docs/` to `{parent}/ai_docs/sub-workspaces/{child-name}/`
+- **from-parent**: Copies files from `{parent}/ai_docs/sub-workspaces/{child-name}/` to `{child}/ai_docs/`
 - Backups are created automatically before overriding existing files
 
 ---
 
-## Project Targeting
+## Sub-Workspace Targeting
 
 ### Overview
 
-When working in a multi-project workspace, use `--project` flag to target a specific project:
+When working in a multi-sub-workspace workspace, use `--sub-workspace` flag to target a specific sub-workspace:
 
 ```bash
-/ut:create-rules --project frontend
+/ut:create-rules --sub-workspace frontend
 ```
 
-This outputs rules to the project's docs folder instead of workspace root:
+This outputs rules to the sub-workspace's docs folder instead of workspace root:
 - **With flag**: `apps/frontend/ai_docs/rules/test/ut-rule.md`
 - **Without flag**: `ai_docs/rules/test/ut-rule.md` (workspace level)
 
 ### Usage
 
-All UT commands support `--project NAME`:
+All UT commands support `--sub-workspace NAME`:
 
 ```bash
-# Create rules for specific project
-/ut:create-rules --project backend
+# Create rules for specific sub-workspace
+/ut:create-rules --sub-workspace backend
 
-# Plan tests for project
-/ut:plan feature-001 --project frontend
+# Plan tests for sub-workspace
+/ut:plan feature-001 --sub-workspace frontend
 
 # Generate tests
-/ut:generate feature-001 --project backend
+/ut:generate feature-001 --sub-workspace backend
 
 # Auto workflow
-/ut:auto feature-001 --project frontend
+/ut:auto feature-001 --sub-workspace frontend
 ```
 
 ### Auto-Detection
 
-When running commands from within a project directory, TihonSpec auto-detects the project:
+When running commands from within a sub-workspace directory, TihonSpec auto-detects the sub-workspace:
 
 ```
 # CWD: /workspace/apps/frontend/src
@@ -306,9 +306,9 @@ $ /ut:create-rules
 # Output: apps/frontend/ai_docs/rules/test/ut-rule.md
 ```
 
-### Project Configuration
+### Sub-Workspace Configuration
 
-Each project can have its own docs path:
+Each sub-workspace can have its own docs path:
 
 ```yaml
 # Parent workspace: .tihonspec/.tihonspec.yaml
@@ -318,11 +318,11 @@ name: "my-workspace"
 docs:
   path: "ai_docs"
 
-projects:
+sub-workspaces:
   - name: "frontend"
     path: "apps/frontend"
     docs:
-      path: "ai_docs"      # Custom docs path for this project
+      path: "ai_docs"      # Custom docs path for this sub-workspace
 
   - name: "backend"
     path: "apps/backend"
@@ -331,36 +331,36 @@ projects:
 
 ### Error Handling
 
-When project not found:
+When sub-workspace not found:
 
 ```
-❌ Error: Project 'foo' not found
-💡 Available projects: frontend, backend, shared-lib
+❌ Error: Sub-workspace 'foo' not found
+💡 Available sub-workspaces: frontend, backend, shared-lib
 ```
 
-### FAQ: Project Targeting
+### FAQ: Sub-Workspace Targeting
 
-#### Q: What if I run without --project in multi-project workspace?
+#### Q: What if I run without --sub-workspace in multi-sub-workspace workspace?
 
-If CWD is inside a project path → auto-detect and use that project.
+If CWD is inside a sub-workspace path → auto-detect and use that sub-workspace.
 Otherwise → use workspace root (default behavior).
 
 #### Q: Can I override auto-detection?
 
-Yes, `--project` flag always takes priority:
+Yes, `--sub-workspace` flag always takes priority:
 
 ```bash
 # CWD: /workspace/apps/frontend/src
-$ /ut:create-rules --project backend
+$ /ut:create-rules --sub-workspace backend
 
 # Uses backend, not frontend (despite CWD)
 ```
 
-#### Q: How do I list available projects?
+#### Q: How do I list available sub-workspaces?
 
-Run any UT script without `--project` from workspace root:
+Run any UT script without `--sub-workspace` from workspace root:
 
 ```bash
 $ bash .tihonspec/scripts/bash/ut/create-rules.sh
-# JSON output includes PROJECTS array
+# JSON output includes SUB_WORKSPACES array
 ```

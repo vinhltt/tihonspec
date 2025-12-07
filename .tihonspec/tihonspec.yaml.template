@@ -1,5 +1,5 @@
 # TihonSpec Configuration
-# Every project is a workspace - can contain sub-workspaces
+# Every workspace can contain sub-workspaces
 # Docs: .tihonspec/docs/configuration-guide.md
 
 version: "1.0"
@@ -16,8 +16,8 @@ docs:
   #     - "*.draft.md"
   #     - ".local/**"
 
-# Optional: Define child projects (for parent workspaces)
-# projects:
+# Optional: Define child sub-workspaces (for parent workspaces)
+# sub-workspaces:
 #   - name: "frontend"
 #     path: "apps/frontend"
 #   - name: "backend"

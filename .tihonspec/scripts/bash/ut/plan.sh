@@ -2,7 +2,7 @@
 #
 # plan.sh - Validate environment for /ut:plan command
 #
-# Usage: plan.sh <feature-id> [--project NAME] [--review] [--force]
+# Usage: plan.sh <feature-id> [--sub-workspace NAME] [--review] [--force]
 #
 # This script validates environment and outputs paths.
 # Framework detection and test scanning handled by AI via prompt.
@@ -23,14 +23,14 @@ json_escape() {
 
 # Parse arguments
 FEATURE_ID=""
-PROJECT_NAME=""
+SUB_WORKSPACE_NAME=""
 REVIEW_MODE="false"
 FORCE_MODE="false"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --project)
-            PROJECT_NAME="$2"
+        --sub-workspace)
+            SUB_WORKSPACE_NAME="$2"
             shift 2
             ;;
         --review)
@@ -52,7 +52,7 @@ done
 
 if [ -z "$FEATURE_ID" ]; then
     echo "❌ Error: Feature ID required" >&2
-    echo "Usage: $0 <feature-id> [--project NAME] [--review] [--force]" >&2
+    echo "Usage: $0 <feature-id> [--sub-workspace NAME] [--review] [--force]" >&2
     echo "💡 Example: $0 aa-001" >&2
     exit 1
 fi
@@ -67,7 +67,7 @@ REPO_ROOT=$(get_repo_root)
 parsed=$(parse_feature_id "$FEATURE_ID") || exit 1
 IFS='|' read -r FOLDER TICKET FEATURE_DIR BRANCH_NAME <<< "$parsed"
 
-# Get workspace config (hierarchical model) with project targeting
+# Get workspace config (hierarchical model) with sub-workspace targeting
 WORKSPACE_ROOT="$REPO_ROOT"
 DOCS_PATH="ai_docs"
 TARGET_ROOT=""
@@ -75,11 +75,11 @@ TARGET_DOCS_PATH=""
 DETECT_SCRIPT="$SCRIPT_DIR/../detect-config.sh"
 
 if [[ -f "$DETECT_SCRIPT" ]]; then
-    # Pass --project flag if specified
-    if [[ -n "$PROJECT_NAME" ]]; then
-        CONFIG_JSON=$(bash "$DETECT_SCRIPT" --project "$PROJECT_NAME" 2>/dev/null || echo '{}')
+    # Pass --sub-workspace flag if specified
+    if [[ -n "$SUB_WORKSPACE_NAME" ]]; then
+        CONFIG_JSON=$(bash "$DETECT_SCRIPT" --sub-workspace "$SUB_WORKSPACE_NAME") || exit 1
     else
-        CONFIG_JSON=$(bash "$DETECT_SCRIPT" 2>/dev/null || echo '{}')
+        CONFIG_JSON=$(bash "$DETECT_SCRIPT") || exit 1
     fi
 
     CONFIG_FOUND=$(echo "$CONFIG_JSON" | jq -r '.CONFIG_FOUND // false' 2>/dev/null)
@@ -88,25 +88,25 @@ if [[ -f "$DETECT_SCRIPT" ]]; then
         DOCS_PATH=$(echo "$CONFIG_JSON" | jq -r '.DOCS_PATH // "ai_docs"' 2>/dev/null)
         [[ -z "$WORKSPACE_ROOT" ]] && WORKSPACE_ROOT="$REPO_ROOT"
 
-        # Check for project targeting
-        TARGET_PROJECT=$(echo "$CONFIG_JSON" | jq -r '.TARGET_PROJECT // empty' 2>/dev/null)
-        if [[ -n "$TARGET_PROJECT" && "$TARGET_PROJECT" != "null" ]]; then
-            TARGET_ROOT=$(echo "$CONFIG_JSON" | jq -r '.TARGET_PROJECT.root // empty' 2>/dev/null)
-            TARGET_DOCS_PATH=$(echo "$CONFIG_JSON" | jq -r '.TARGET_PROJECT.docs_path // empty' 2>/dev/null)
+        # Check for sub-workspace targeting
+        TARGET_SUB_WORKSPACE=$(echo "$CONFIG_JSON" | jq -r '.TARGET_SUB_WORKSPACE // empty' 2>/dev/null)
+        if [[ -n "$TARGET_SUB_WORKSPACE" && "$TARGET_SUB_WORKSPACE" != "null" ]]; then
+            TARGET_ROOT=$(echo "$CONFIG_JSON" | jq -r '.TARGET_SUB_WORKSPACE.root // empty' 2>/dev/null)
+            TARGET_DOCS_PATH=$(echo "$CONFIG_JSON" | jq -r '.TARGET_SUB_WORKSPACE.docs_path // empty' 2>/dev/null)
         fi
 
-        # Check for error (project not found)
+        # Check for error (sub-workspace not found)
         ERROR=$(echo "$CONFIG_JSON" | jq -r '.ERROR // empty' 2>/dev/null)
-        if [[ "$ERROR" == "project_not_found" ]]; then
-            AVAILABLE=$(echo "$CONFIG_JSON" | jq -r '.AVAILABLE_PROJECTS | join(", ")' 2>/dev/null)
-            echo "❌ Error: Project '$PROJECT_NAME' not found" >&2
-            echo "💡 Available projects: $AVAILABLE" >&2
+        if [[ "$ERROR" == "sub_workspace_not_found" ]]; then
+            AVAILABLE=$(echo "$CONFIG_JSON" | jq -r '.AVAILABLE_SUB_WORKSPACES | join(", ")' 2>/dev/null)
+            echo "❌ Error: Sub-workspace '$SUB_WORKSPACE_NAME' not found" >&2
+            echo "💡 Available sub-workspaces: $AVAILABLE" >&2
             exit 1
         fi
     fi
 fi
 
-# Determine output root (project root or workspace root)
+# Determine output root (sub-workspace root or workspace root)
 OUTPUT_ROOT="$WORKSPACE_ROOT"
 OUTPUT_DOCS_PATH="$DOCS_PATH"
 if [[ -n "$TARGET_ROOT" ]]; then

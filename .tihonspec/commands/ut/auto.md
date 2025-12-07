@@ -9,11 +9,11 @@ Run the complete UT workflow automatically: plan -> generate -> run tests. Singl
 ## Usage
 
 ```bash
-/ut:auto {feature-id}                    # Full workflow
-/ut:auto {feature-id} --project {name}   # Target specific project
-/ut:auto {feature-id} --skip-run         # Skip running tests
-/ut:auto {feature-id} --plan-only        # Only create plan
-/ut:auto {feature-id} --force            # Overwrite existing
+/ut:auto {feature-id}                         # Full workflow
+/ut:auto {feature-id} --sub-workspace {name}  # Target specific sub-workspace
+/ut:auto {feature-id} --skip-run              # Skip running tests
+/ut:auto {feature-id} --plan-only             # Only create plan
+/ut:auto {feature-id} --force                 # Overwrite existing
 ```
 
 ---
@@ -24,7 +24,7 @@ Run the complete UT workflow automatically: plan -> generate -> run tests. Singl
 ut:auto
    |
    v
-[Check UT Rules] --> [Create if missing] (uses --project for path)
+[Check UT Rules] --> [Create if missing] (uses --sub-workspace for path)
    |
    v
 [Plan] --> ut-plan.md, ut-phase-*.md
@@ -44,25 +44,25 @@ Creates all artifacts:
 - `ut-plan.md` - Main test plan
 - `ut-phase-01-setup.md` - Setup phase
 - `ut-phase-02-*.md` - Test phases
-- Test files in project directory
-- UT rules in project or workspace `{docs-path}/rules/test/ut-rule.md`
+- Test files in sub-workspace directory
+- UT rules in sub-workspace or workspace `{docs-path}/rules/test/ut-rule.md`
 
 ---
 
 ## Execution
 
-### Step 0: Parse Arguments & Project Selection
+### Step 0: Parse Arguments & Sub-Workspace Selection
 
-**Parse user input for project targeting**:
-1. Check if `--project NAME` in command args
-2. Check if user mentions project name in natural language
-3. If multi-project workspace and no project specified → Ask user which project
+**Parse user input for sub-workspace targeting**:
+1. Check if `--sub-workspace NAME` in command args
+2. Check if user mentions sub-workspace name in natural language
+3. If multi-sub-workspace workspace and no sub-workspace specified → Ask user which sub-workspace
 
-**Run bash script with project flag**:
+**Run bash script with sub-workspace flag**:
 
 ```bash
-# If project specified:
-bash .tihonspec/scripts/bash/ut/auto.sh <feature-id> --project {PROJECT_NAME}
+# If sub-workspace specified:
+bash .tihonspec/scripts/bash/ut/auto.sh <feature-id> --sub-workspace {SUB_WORKSPACE_NAME}
 
 # Otherwise:
 bash .tihonspec/scripts/bash/ut/auto.sh <feature-id>
@@ -74,19 +74,19 @@ If error -> STOP and report to user
 
 ---
 
-### Step 0.5: Load Project Context (Optional)
+### Step 0.5: Load Sub-Workspace Context (Optional)
 
 1. Run: `bash .tihonspec/scripts/bash/detect-config.sh`
-2. Parse JSON output into PROJECT_CONTEXT
-3. **If PROJECT_CONTEXT.CONFIG_FOUND is true**:
+2. Parse JSON output into SUB_WORKSPACE_CONTEXT
+3. **If SUB_WORKSPACE_CONTEXT.CONFIG_FOUND is true**:
    - **Test Framework**: Use METADATA.test_framework (vitest, jest, pytest, etc.)
    - **Test Command**: Use COMMANDS.test for execution
    - **Rules**: Load testing conventions from RULES_FILES
    - **Language**: Use METADATA.language for syntax patterns
-4. **If PROJECT_CONTEXT.CONFIG_FOUND is false**: Auto-detect from project files (existing behavior)
+4. **If SUB_WORKSPACE_CONTEXT.CONFIG_FOUND is false**: Auto-detect from sub-workspace files (existing behavior)
 5. **If rules file not found**: Warning, continue
 
-**Project Context** (use in later steps):
+**Sub-Workspace Context** (use in later steps):
 - Test Framework: {METADATA.test_framework}
 - Test Command: {COMMANDS.test}
 - Language: {METADATA.language}
@@ -230,6 +230,6 @@ Next Steps:
 
 ## Related
 
-- `ut:create-rules` - One-time project setup
+- `ut:create-rules` - One-time sub-workspace setup
 - `ut:plan` - Create test plan only
 - `ut:generate` - Generate test files only

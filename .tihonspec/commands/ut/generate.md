@@ -2,15 +2,15 @@
 
 ## Purpose
 
-Generate executable unit test code based on the UT plan. Creates test files with test cases, assertions, mocks, and fixtures following project conventions.
+Generate executable unit test code based on the UT plan. Creates test files with test cases, assertions, mocks, and fixtures following sub-workspace conventions.
 
 ---
 
 ## Usage
 
 ```bash
-/ut:generate {feature-id}                    # Generate tests
-/ut:generate {feature-id} --project {name}   # Target specific project
+/ut:generate {feature-id}                         # Generate tests
+/ut:generate {feature-id} --sub-workspace {name}  # Target specific sub-workspace
 ```
 
 ---
@@ -19,13 +19,13 @@ Generate executable unit test code based on the UT plan. Creates test files with
 
 - **ut-plan.md** - Test organization, coverage goals, mocking strategy
 - **ut-phase-*.md** - Phase files with test suites and cases
-- **ut-rule.md** - From project or workspace (based on --project flag)
+- **ut-rule.md** - From sub-workspace or workspace (based on --sub-workspace flag)
 
 ---
 
 ## Output
 
-Creates test files in project directory:
+Creates test files in sub-workspace directory:
 
 | Framework | Pattern |
 |-----------|---------|
@@ -40,18 +40,18 @@ Creates test files in project directory:
 
 ## Execution
 
-### Step 0: Parse Arguments & Project Selection
+### Step 0: Parse Arguments & Sub-Workspace Selection
 
-**Parse user input for project targeting**:
-1. Check if `--project NAME` in command args
-2. Check if user mentions project name in natural language
-3. If multi-project workspace and no project specified → Ask user which project
+**Parse user input for sub-workspace targeting**:
+1. Check if `--sub-workspace NAME` in command args
+2. Check if user mentions sub-workspace name in natural language
+3. If multi-sub-workspace workspace and no sub-workspace specified → Ask user which sub-workspace
 
-**Run bash script with project flag**:
+**Run bash script with sub-workspace flag**:
 
 ```bash
-# If project specified:
-bash .tihonspec/scripts/bash/ut/generate.sh <feature-id> --project {PROJECT_NAME}
+# If sub-workspace specified:
+bash .tihonspec/scripts/bash/ut/generate.sh <feature-id> --sub-workspace {SUB_WORKSPACE_NAME}
 
 # Otherwise:
 bash .tihonspec/scripts/bash/ut/generate.sh <feature-id>
@@ -68,8 +68,8 @@ If error -> STOP and report to user
 **Run check-rules script**:
 
 ```bash
-# If project specified:
-bash .tihonspec/scripts/bash/ut/check-rules.sh --project {PROJECT_NAME}
+# If sub-workspace specified:
+bash .tihonspec/scripts/bash/ut/check-rules.sh --sub-workspace {SUB_WORKSPACE_NAME}
 
 # Otherwise:
 bash .tihonspec/scripts/bash/ut/check-rules.sh
@@ -87,8 +87,8 @@ Parse JSON output → Store `EXISTS`, `RULES_FILE`, `FRAMEWORK`, `COVERAGE_TARGE
   Expected: {RULES_FILE}
 
   💡 Run these commands first:
-     1. /ut:create-rules --project {PROJECT_NAME}
-     2. /ut:generate {feature-id} --project {PROJECT_NAME}
+     1. /ut:create-rules --sub-workspace {SUB_WORKSPACE_NAME}
+     2. /ut:generate {feature-id} --sub-workspace {SUB_WORKSPACE_NAME}
   ```
 - **STOP** - Do not continue
 
@@ -99,18 +99,18 @@ Parse JSON output → Store `EXISTS`, `RULES_FILE`, `FRAMEWORK`, `COVERAGE_TARGE
 
 ---
 
-### Step 0.5: Load Project Context (Optional)
+### Step 0.5: Load Sub-Workspace Context (Optional)
 
-1. Project context already loaded from Step 0 (via detect-config.sh with --project)
+1. Sub-workspace context already loaded from Step 0 (via detect-config.sh with --sub-workspace)
 2. **If CONFIG_FOUND is true**:
    - **Test Framework**: Use METADATA.test_framework (vitest, jest, pytest, etc.)
    - **Test Command**: Use COMMANDS.test for execution
    - **Rules**: Load testing conventions from RULES_FILES
    - **Language**: Use METADATA.language for syntax patterns
-4. **If PROJECT_CONTEXT.CONFIG_FOUND is false**: Auto-detect from project files (existing behavior)
+4. **If SUB_WORKSPACE_CONTEXT.CONFIG_FOUND is false**: Auto-detect from sub-workspace files (existing behavior)
 5. **If rules file not found**: Already handled in Step 0.1 (error, stopped)
 
-**Project Context** (use in later steps):
+**Sub-Workspace Context** (use in later steps):
 - Test Framework: {METADATA.test_framework}
 - Test Command: {COMMANDS.test}
 - Language: {METADATA.language}
@@ -147,7 +147,7 @@ If `ut-plan.md` missing -> "Run `/ut:plan {feature-id}` first"
 | `/tests/` directory | `/tests/composables/useCalc.test.ts` |
 | `__tests__/` subdirs | `composables/__tests__/useCalc.test.ts` |
 | Co-located | `composables/useCalc.spec.ts` |
-| Separate project | `MyProject.Tests/CalcTests.cs` |
+| Separate test directory | `MyProject.Tests/CalcTests.cs` |
 
 Apply pattern to each source file in phases.
 

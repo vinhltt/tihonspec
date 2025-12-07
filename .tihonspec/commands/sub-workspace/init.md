@@ -1,22 +1,22 @@
 ---
-description: Initialize a new project configuration in the current directory
+description: Initialize a new sub-workspace configuration in the current directory
 ---
 
 ## Purpose
 
-Create a new `.tihonspec.yaml` configuration file for the current project.
+Create a new `.tihonspec.yaml` configuration file for the current sub-workspace.
 
 ## Usage
 
 ```
-/project.init [project-name]
+/sub-workspace.init [sub-workspace-name]
 ```
 
 ## Execution Steps
 
-### Step 1: Determine Project Name
+### Step 1: Determine Sub-workspace Name
 
-1. If argument provided: use as project name
+1. If argument provided: use as sub-workspace name
 2. If no argument: use current directory name
 3. Convert to lowercase, replace spaces with hyphens
 
@@ -28,15 +28,15 @@ Create a new `.tihonspec.yaml` configuration file for the current project.
    - Ask: "Config exists. Overwrite? (y/n)"
    - If no: STOP
 
-### Step 3: Detect Project Type
+### Step 3: Detect Sub-workspace Type
 
 1. Run: `bash .tihonspec/scripts/bash/detect-config.sh`
 2. Parse JSON output
 3. If workspace config found above:
-   - Type = "project" (child of workspace)
+   - Type = "sub-workspace" (child of workspace)
    - Inherit workspace settings
 4. If no workspace:
-   - Type = "project" (standalone)
+   - Type = "sub-workspace" (standalone)
 
 ### Step 4: Auto-detect Metadata
 
@@ -64,8 +64,8 @@ Create `.tihonspec/.tihonspec.yaml`:
 
 ```yaml
 version: "1.0"
-name: "{project_name}"
-type: "project"
+name: "{sub_workspace_name}"
+type: "sub-workspace"
 
 docs:
   path: "ai_docs"
@@ -95,7 +95,7 @@ Use DOCS_PATH from workspace config if available, otherwise default to `ai_docs`
 ### Step 7: Output
 
 ```
-Project initialized: {project_name}
+Sub-workspace initialized: {sub_workspace_name}
 
 Created:
   - .tihonspec/.tihonspec.yaml
@@ -107,7 +107,7 @@ Detected:
   - Framework: {framework}
 
 Next steps:
-  1. Edit .tihonspec/.tihonspec.yaml to configure project
-  2. Edit {DOCS_PATH}/rules.md to add project rules
-  3. Run /project.list to verify workspace integration
+  1. Edit .tihonspec/.tihonspec.yaml to configure sub-workspace
+  2. Edit {DOCS_PATH}/rules.md to add sub-workspace rules
+  3. Run /sub-workspace.list to verify workspace integration
 ```

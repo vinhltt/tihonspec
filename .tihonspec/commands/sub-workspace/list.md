@@ -1,15 +1,15 @@
 ---
-description: List all projects in the current workspace
+description: List all sub-workspaces in the current workspace
 ---
 
 ## Purpose
 
-Display all projects configured in the workspace with their status and paths.
+Display all sub-workspaces configured in the workspace with their status and paths.
 
 ## Usage
 
 ```
-/project.list
+/sub-workspace.list
 ```
 
 ## Execution Steps
@@ -19,27 +19,27 @@ Display all projects configured in the workspace with their status and paths.
 1. Run: `bash .tihonspec/scripts/bash/detect-config.sh`
 2. Parse JSON output
 3. If no workspace found:
-   - "Not in a workspace. Run from workspace root or project directory."
+   - "Not in a workspace. Run from workspace root or sub-workspace directory."
    - STOP
 
 ### Step 2: Load Workspace Config
 
 1. Navigate to workspace root
 2. Read `.tihonspec/.tihonspec.yaml`
-3. Extract `projects` array
+3. Extract `sub-workspaces` array
 
-### Step 3: Scan Projects
+### Step 3: Scan Sub-workspaces
 
-For each project in `projects` array:
+For each sub-workspace in `sub-workspaces` array:
 
 1. Check if path exists
-2. Check if `.tihonspec/.tihonspec.yaml` exists in project
-3. If project config exists:
+2. Check if `.tihonspec/.tihonspec.yaml` exists in sub-workspace
+3. If sub-workspace config exists:
    - Load and merge with workspace
    - Get metadata, rules count
 4. Calculate status:
-   - "configured" = has project config
-   - "inherited" = no project config (uses workspace)
+   - "configured" = has sub-workspace config
+   - "inherited" = no sub-workspace config (uses workspace)
    - "missing" = path doesn't exist
 
 ### Step 4: Output Table
@@ -48,7 +48,7 @@ For each project in `projects` array:
 Workspace: {workspace_name}
 Root: {workspace_path}
 
-Projects:
+Sub-workspaces:
 ┌──────────────┬─────────────────────┬────────────┬───────────┬──────────┐
 │ Name         │ Path                │ Language   │ Framework │ Status   │
 ├──────────────┼─────────────────────┼────────────┼───────────┼──────────┤
@@ -58,17 +58,17 @@ Projects:
 │ Mobile       │ apps/mobile         │ -          │ -         │ missing    │
 └──────────────┴─────────────────────┴────────────┴───────────┴──────────┘
 
-Summary: 4 projects (2 configured, 1 inherited, 1 missing)
+Summary: 4 sub-workspaces (2 configured, 1 inherited, 1 missing)
 
 Commands:
-  /project.init     - Initialize project config in current directory
-  /feature.specify  - Start feature specification
+  /sub-workspace.init     - Initialize sub-workspace config in current directory
+  /feature.specify        - Start feature specification
 ```
 
 ### Step 5: Handle Edge Cases
 
 | Scenario | Output |
 |----------|--------|
-| No projects array | "No projects defined in workspace" |
-| Empty projects | "Workspace has no projects configured" |
+| No sub-workspaces array | "No sub-workspaces defined in workspace" |
+| Empty sub-workspaces | "Workspace has no sub-workspaces configured" |
 | Not in workspace | "Not in a workspace directory" |

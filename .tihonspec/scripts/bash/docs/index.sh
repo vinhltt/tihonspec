@@ -1,33 +1,38 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
-# create-rules.sh - Validate environment for /ut:create-rules command
+# index.sh - Scan docs directory and output file list JSON
 #
-# Usage: create-rules.sh [--sub-workspace NAME]
+# Usage: index.sh [--sub-workspace NAME] [--full]
 #
-# This script validates environment and outputs paths.
-# Framework detection and test scanning handled by AI via prompt.
+# Scans all files in {docs.path}/ and outputs JSON for AI to process.
+# Used by /docs:index command.
 
 set -eo pipefail
 
-# Source environment configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../common-env.sh" 2>/dev/null || {
-    echo "❌ Error: Failed to load common-env.sh" >&2
+    echo "ERROR: Failed to load common-env.sh" >&2
     exit 1
 }
 
-# JSON escape function for safe output
+# JSON escape function
 json_escape() {
-    printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+    printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\n/\\n/g'
 }
 
 # Parse arguments
 SUB_WORKSPACE_NAME=""
+FULL_REBUILD="false"
+
 while [[ $# -gt 0 ]]; do
     case $1 in
         --sub-workspace)
             SUB_WORKSPACE_NAME="$2"
             shift 2
+            ;;
+        --full)
+            FULL_REBUILD="true"
+            shift
             ;;
         *)
             shift
@@ -35,10 +40,9 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Get repository root (fallback)
 REPO_ROOT=$(get_repo_root)
 
-# Get workspace config (hierarchical model) with sub-workspace targeting
+# Get workspace config with sub-workspace targeting
 WORKSPACE_ROOT="$REPO_ROOT"
 DOCS_PATH="ai_docs"
 TARGET_ROOT=""
@@ -47,7 +51,6 @@ SUB_WORKSPACES_JSON="[]"
 DETECT_SCRIPT="$SCRIPT_DIR/../detect-config.sh"
 
 if [[ -f "$DETECT_SCRIPT" ]]; then
-    # Pass --sub-workspace flag if specified
     if [[ -n "$SUB_WORKSPACE_NAME" ]]; then
         CONFIG_JSON=$(bash "$DETECT_SCRIPT" --sub-workspace "$SUB_WORKSPACE_NAME") || exit 1
     else
@@ -61,19 +64,17 @@ if [[ -f "$DETECT_SCRIPT" ]]; then
         SUB_WORKSPACES_JSON=$(echo "$CONFIG_JSON" | jq -c '.SUB_WORKSPACES // []' 2>/dev/null)
         [[ -z "$WORKSPACE_ROOT" ]] && WORKSPACE_ROOT="$REPO_ROOT"
 
-        # Check for sub-workspace targeting
         TARGET_SUB_WORKSPACE=$(echo "$CONFIG_JSON" | jq -r '.TARGET_SUB_WORKSPACE // empty' 2>/dev/null)
         if [[ -n "$TARGET_SUB_WORKSPACE" && "$TARGET_SUB_WORKSPACE" != "null" ]]; then
             TARGET_ROOT=$(echo "$CONFIG_JSON" | jq -r '.TARGET_SUB_WORKSPACE.root // empty' 2>/dev/null)
             TARGET_DOCS_PATH=$(echo "$CONFIG_JSON" | jq -r '.TARGET_SUB_WORKSPACE.docs_path // empty' 2>/dev/null)
         fi
 
-        # Check for error (sub-workspace not found)
         ERROR=$(echo "$CONFIG_JSON" | jq -r '.ERROR // empty' 2>/dev/null)
         if [[ "$ERROR" == "sub_workspace_not_found" ]]; then
             AVAILABLE=$(echo "$CONFIG_JSON" | jq -r '.AVAILABLE_SUB_WORKSPACES | join(", ")' 2>/dev/null)
-            echo "❌ Error: Sub-workspace '$SUB_WORKSPACE_NAME' not found" >&2
-            echo "💡 Available sub-workspaces: $AVAILABLE" >&2
+            echo "ERROR: Sub-workspace '$SUB_WORKSPACE_NAME' not found" >&2
+            echo "Available: $AVAILABLE" >&2
             exit 1
         fi
     fi
@@ -87,54 +88,66 @@ if [[ -n "$TARGET_ROOT" ]]; then
     OUTPUT_DOCS_PATH="$TARGET_DOCS_PATH"
 fi
 
-# Define output paths (using target root and docs path)
-RULES_DIR="$OUTPUT_ROOT/$OUTPUT_DOCS_PATH/rules/test"
-RULES_FILE="$RULES_DIR/ut-rule.md"
-TEMPLATE_FILE="$REPO_ROOT/.tihonspec/templates/ut-rule-template.md"
+# Paths
+DOCS_DIR="$OUTPUT_ROOT/$OUTPUT_DOCS_PATH"
+MANAGER_FILE="$DOCS_DIR/document-manager.md"
 
-# Check if feature root exists
-if [ ! -d "$REPO_ROOT/.tihonspec" ]; then
-    echo "❌ Error: .tihonspec directory not found" >&2
-    echo "💡 Tip: Initialize TihonSpec with setup command" >&2
+# Check if docs directory exists
+if [[ ! -d "$DOCS_DIR" ]]; then
+    echo "ERROR: Docs directory not found: $DOCS_DIR" >&2
+    echo "Create the directory or check your configuration." >&2
     exit 1
 fi
 
-# Check if template exists and is readable
-if [ ! -f "$TEMPLATE_FILE" ]; then
-    echo "❌ Error: UT rule template not found: $TEMPLATE_FILE" >&2
-    echo "💡 Tip: Restore with 'git checkout .tihonspec/templates/ut-rule-template.md'" >&2
-    exit 1
+# Check if document-manager.md exists
+HAS_MANAGER="false"
+if [[ -f "$MANAGER_FILE" ]]; then
+    HAS_MANAGER="true"
 fi
 
-if [ ! -r "$TEMPLATE_FILE" ]; then
-    echo "❌ Error: Cannot read template file: $TEMPLATE_FILE" >&2
-    echo "💡 Tip: Check file permissions" >&2
-    exit 1
-fi
+# Scan all files in docs directory (excluding document-manager.md and custom-document-manager.md)
+FILES_JSON="[]"
+while IFS= read -r -d '' file; do
+    relative_path="${file#$DOCS_DIR/}"
 
-# Check existing rules
-EXISTING_RULES=""
+    # Skip manager files
+    if [[ "$relative_path" == "document-manager.md" ]] || [[ "$relative_path" == "custom-document-manager.md" ]]; then
+        continue
+    fi
+
+    # Get file info
+    file_size=$(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null || echo "0")
+    file_modified=$(stat -c%Y "$file" 2>/dev/null || stat -f%m "$file" 2>/dev/null || echo "0")
+
+    # Add to JSON array
+    FILES_JSON=$(echo "$FILES_JSON" | jq --arg path "$relative_path" --arg size "$file_size" --arg mod "$file_modified" \
+        '. + [{path: $path, size: ($size | tonumber), modified: ($mod | tonumber)}]')
+done < <(find "$DOCS_DIR" -type f -name "*.md" -print0 2>/dev/null)
+
+# Count files
+FILE_COUNT=$(echo "$FILES_JSON" | jq 'length')
+
+# Determine mode
 MODE="create"
-if [ -f "$RULES_FILE" ]; then
-    EXISTING_RULES="$RULES_FILE"
-    MODE="exists"
+if [[ "$HAS_MANAGER" == "true" ]]; then
+    if [[ "$FULL_REBUILD" == "true" ]]; then
+        MODE="full_rebuild"
+    else
+        MODE="incremental"
+    fi
 fi
 
-# Create rules directory
-mkdir -p "$RULES_DIR"
-
-# Output JSON for AI (with escaped paths for Windows compatibility)
+# Output JSON
 cat <<EOF
 {
-  "WORKSPACE_ROOT": "$(json_escape "$WORKSPACE_ROOT")",
-  "DOCS_PATH": "$(json_escape "$DOCS_PATH")",
-  "OUTPUT_ROOT": "$(json_escape "$OUTPUT_ROOT")",
-  "OUTPUT_DOCS_PATH": "$(json_escape "$OUTPUT_DOCS_PATH")",
-  "RULES_DIR": "$(json_escape "$RULES_DIR")",
-  "RULES_FILE": "$(json_escape "$RULES_FILE")",
-  "TEMPLATE_FILE": "$(json_escape "$TEMPLATE_FILE")",
-  "EXISTING_RULES": "$(json_escape "$EXISTING_RULES")",
+  "DOCS_DIR": "$(json_escape "$DOCS_DIR")",
+  "MANAGER_FILE": "$(json_escape "$MANAGER_FILE")",
+  "HAS_MANAGER": $HAS_MANAGER,
   "MODE": "$MODE",
+  "FULL_REBUILD": $FULL_REBUILD,
+  "FILE_COUNT": $FILE_COUNT,
+  "FILES": $FILES_JSON,
+  "OUTPUT_ROOT": "$(json_escape "$OUTPUT_ROOT")",
   "SUB_WORKSPACE_NAME": "$(json_escape "$SUB_WORKSPACE_NAME")",
   "SUB_WORKSPACES": $SUB_WORKSPACES_JSON
 }
