@@ -44,10 +44,19 @@ Focus on **WHAT** users need, not **HOW** to implement.
 Install directly from GitHub without cloning:
 
 ```bash
-# One-liner installation
-curl -fsSL https://raw.githubusercontent.com/vinhltt/tihonspec/main/install.sh | bash
+# Interactive installation (select provider via menu)
+bash <(curl -fsSL https://raw.githubusercontent.com/vinhltt/tihonspec/main/install.sh)
 
-# Install all providers to specific path
+# Install Claude Code only
+curl -fsSL https://raw.githubusercontent.com/vinhltt/tihonspec/main/install.sh | bash -s -- --claude
+
+# Install GitHub Copilot only
+curl -fsSL https://raw.githubusercontent.com/vinhltt/tihonspec/main/install.sh | bash -s -- --github
+
+# Install all providers
+curl -fsSL https://raw.githubusercontent.com/vinhltt/tihonspec/main/install.sh | bash -s -- --all
+
+# With custom target path
 curl -fsSL https://raw.githubusercontent.com/vinhltt/tihonspec/main/install.sh | bash -s -- --all --target /path/to/project
 
 # With prefix
@@ -56,7 +65,7 @@ curl -fsSL https://raw.githubusercontent.com/vinhltt/tihonspec/main/install.sh |
 
 **Using wget (if curl unavailable):**
 ```bash
-wget -qO- https://raw.githubusercontent.com/vinhltt/tihonspec/main/install.sh | bash
+bash <(wget -qO- https://raw.githubusercontent.com/vinhltt/tihonspec/main/install.sh)
 ```
 
 ### Local Installation

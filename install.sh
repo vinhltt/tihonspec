@@ -2,7 +2,7 @@
 # =============================================================================
 # install.sh - TihonSpec Remote Installer
 # =============================================================================
-# Usage: curl -fsSL https://raw.githubusercontent.com/vinhltt/tihonspec/main/install.sh | bash
+# Usage: bash <(curl -fsSL https://raw.githubusercontent.com/vinhltt/tihonspec/main/install.sh)
 #
 # Installs TihonSpec directly from GitHub without cloning the repository.
 # Supports: Claude Code, GitHub Copilot
@@ -54,6 +54,7 @@ PREFIX=""
 VERSION=""           # Specific version to install
 CHECK_ONLY=false     # Only check for updates
 FORCE=false          # Force reinstall
+SELECTED_PROVIDER="" # Specific provider to install (claude/github)
 PROVIDERS=()
 
 # =============================================================================
@@ -552,6 +553,8 @@ TihonSpec Remote Installer - Install directly from GitHub.
 
 OPTIONS:
   --all              Install all providers (Claude Code + GitHub Copilot)
+  --claude           Install Claude Code only
+  --github           Install GitHub Copilot only
   --target <path>    Target project directory (default: current directory)
   --prefix <name>    Add prefix to commands (e.g., "ths" → ths.feature.*)
   --config-only      Config-only mode: create config, skip commands/scripts
@@ -561,10 +564,10 @@ OPTIONS:
   -h, --help         Show this help message
 
 EXAMPLES:
-  curl -fsSL .../install.sh | bash
-  curl -fsSL .../install.sh | bash -s -- --all
-  curl -fsSL .../install.sh | bash -s -- --all --target /my/project
-  curl -fsSL .../install.sh | bash -s -- --version v1.0.0
+  bash <(curl -fsSL .../install.sh)              # Interactive mode
+  curl -fsSL .../install.sh | bash -s -- --all   # Install all providers
+  curl -fsSL .../install.sh | bash -s -- --claude --target /my/project
+  curl -fsSL .../install.sh | bash -s -- --github --prefix ths
   curl -fsSL .../install.sh | bash -s -- --check-update
 
 WINDOWS:
@@ -655,6 +658,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --all)
       INSTALL_ALL=true
+      shift
+      ;;
+    --claude)
+      SELECTED_PROVIDER="claude"
+      shift
+      ;;
+    --github)
+      SELECTED_PROVIDER="github"
       shift
       ;;
     --config-only)
@@ -799,6 +810,10 @@ main() {
     log_info "Installing all providers (--all flag)..."
     echo ""
     install_provider "all"
+  elif [[ -n "$SELECTED_PROVIDER" ]]; then
+    log_info "Installing $SELECTED_PROVIDER provider..."
+    echo ""
+    install_provider "$SELECTED_PROVIDER"
   else
     show_interactive_menu
   fi
