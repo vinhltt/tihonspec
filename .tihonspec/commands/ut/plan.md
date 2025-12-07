@@ -13,7 +13,31 @@ Generate unit test plan using templates. Creates `ut-plan.md` + phase files for 
 /ut:plan {feature-id} --sub-workspace {name}  # Target specific sub-workspace
 /ut:plan {feature-id} --review                # Review and update existing plan
 /ut:plan {feature-id} --force                 # Overwrite without asking
+/ut:plan {feature-id} --standalone            # Skip feature spec, analyze codebase directly
 ```
+
+### Standalone Mode (Smart Auto-Detection)
+
+**You don't need to remember `--standalone` flag!**
+
+When spec.md is not found, the command will **automatically ask**:
+```
+⚠️ Feature spec not found: .tihonspec/feature/al-223/spec.md
+
+How would you like to proceed?
+○ Create feature spec first (recommended)
+○ Continue without spec (analyze codebase directly)
+```
+
+**Explicit flag still works** for automation/scripting:
+```bash
+/ut:plan AL-223 --standalone  # Skip prompt, go straight to standalone mode
+```
+
+In standalone mode:
+- Feature directory auto-created if not exists
+- spec.md NOT required
+- Test requirements derived from user input + codebase analysis
 
 ---
 
@@ -50,17 +74,29 @@ UT rules file location depends on sub-workspace targeting:
 2. Check if user mentions sub-workspace name in natural language (e.g., "for sub-workspace frontend")
 3. If multi-sub-workspace workspace and no sub-workspace specified → Ask user which sub-workspace
 
-**Run bash script with sub-workspace flag**:
+**Run bash script with appropriate flags**:
 
 ```bash
-# If sub-workspace specified:
+# Standard mode:
+bash .tihonspec/scripts/bash/ut/plan.sh <feature-id>
+
+# With sub-workspace:
 bash .tihonspec/scripts/bash/ut/plan.sh <feature-id> --sub-workspace {SUB_WORKSPACE_NAME}
 
-# Otherwise:
-bash .tihonspec/scripts/bash/ut/plan.sh <feature-id>
+# Standalone mode (no spec required):
+bash .tihonspec/scripts/bash/ut/plan.sh <feature-id> --standalone
+
+# Combined:
+bash .tihonspec/scripts/bash/ut/plan.sh <feature-id> --sub-workspace {NAME} --standalone
 ```
 
-Parse JSON output -> Store `FEATURE_DIR`, `SPEC_FILE`, `MODE`, `UT_RULES_FILE`
+Parse JSON output -> Store all fields including `NEEDS_STANDALONE_PROMPT`, `HAS_SPEC_FILE`, `STANDALONE_MODE`
+
+**If NEEDS_STANDALONE_PROMPT = true** (spec.md not found, auto-detected):
+- Use **AskUserQuestion** with options:
+  - **Option 1**: "Create feature spec first" → STOP, instruct `/feature:specify {feature-id}`
+  - **Option 2**: "Continue without spec (standalone)" → Set STANDALONE_MODE = true, continue
+- This provides smart UX: user doesn't need to know `--standalone` flag exists
 
 If error -> STOP and report to user
 
@@ -153,16 +189,27 @@ If missing -> STOP: "Templates not found. Check `.tihonspec/templates/ut/`"
 
 ---
 
-### Step 4: Analyze Feature Spec
+### Step 4: Analyze Feature Spec (or User Input in Standalone Mode)
 
-**Read**: `.tihonspec/feature/{feature-id}/spec.md`
+**If STANDALONE_MODE = false** (standard mode):
+- **Read**: `.tihonspec/feature/{feature-id}/spec.md`
+- **Extract**:
+  - Feature name and summary
+  - Functional requirements (FR-*) -> Test scenarios
+  - User stories -> Critical paths
+  - Edge cases -> Boundary tests
+  - Success criteria -> Coverage goals
 
-**Extract**:
-- Feature name and summary
-- Functional requirements (FR-*) -> Test scenarios
-- User stories -> Critical paths
-- Edge cases -> Boundary tests
-- Success criteria -> Coverage goals
+**If STANDALONE_MODE = true** (standalone mode):
+- **Ask user** via AskUserQuestion:
+  - What modules/files should be tested? (e.g., "org api, org service, org repository")
+  - What are the main test scenarios? (optional - can derive from code)
+  - Any specific edge cases to consider? (optional)
+- **Derive requirements** from Step 5 (codebase scan):
+  - Public APIs -> Test scenarios
+  - Method signatures -> Input/output tests
+  - Error handling patterns -> Edge cases
+  - Dependencies -> Mock requirements
 
 ---
 
@@ -321,7 +368,7 @@ Confirm -> Update files
 | Error | Solution |
 |-------|----------|
 | Templates missing | Check `.tihonspec/templates/ut/` exists |
-| spec.md not found | Run `/feature:specify {feature-id}` first |
+| spec.md not found | Run `/feature:specify {feature-id}` first OR use `--standalone` flag |
 | No source files | Ask user for source directory |
 | No framework detected | Ask user to select framework |
 

@@ -2,7 +2,13 @@
 #
 # plan.sh - Validate environment for /ut:plan command
 #
-# Usage: plan.sh <feature-id> [--sub-workspace NAME] [--review] [--force]
+# Usage: plan.sh <feature-id> [--sub-workspace NAME] [--review] [--force] [--standalone]
+#
+# Options:
+#   --sub-workspace NAME  Target specific sub-workspace
+#   --review              Review existing plan
+#   --force               Force overwrite existing files
+#   --standalone          Skip feature spec requirement (write UT from codebase directly)
 #
 # This script validates environment and outputs paths.
 # Framework detection and test scanning handled by AI via prompt.
@@ -26,6 +32,7 @@ FEATURE_ID=""
 SUB_WORKSPACE_NAME=""
 REVIEW_MODE="false"
 FORCE_MODE="false"
+STANDALONE_MODE="false"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -41,6 +48,10 @@ while [[ $# -gt 0 ]]; do
             FORCE_MODE="true"
             shift
             ;;
+        --standalone)
+            STANDALONE_MODE="true"
+            shift
+            ;;
         *)
             if [ -z "$FEATURE_ID" ]; then
                 FEATURE_ID="$1"
@@ -52,8 +63,9 @@ done
 
 if [ -z "$FEATURE_ID" ]; then
     echo "❌ Error: Feature ID required" >&2
-    echo "Usage: $0 <feature-id> [--sub-workspace NAME] [--review] [--force]" >&2
+    echo "Usage: $0 <feature-id> [--sub-workspace NAME] [--review] [--force] [--standalone]" >&2
     echo "💡 Example: $0 aa-001" >&2
+    echo "💡 Use --standalone to skip feature spec requirement (write UT from codebase directly)" >&2
     exit 1
 fi
 
@@ -121,18 +133,33 @@ COVERAGE_FILE="$FEATURE_DIR/coverage-analysis.md"
 PLAN_FILE="$FEATURE_DIR/test-plan.md"
 UT_RULES_FILE="$OUTPUT_ROOT/$OUTPUT_DOCS_PATH/rules/test/ut-rule.md"
 
-# Validate feature directory exists
-if [ ! -d "$FEATURE_DIR" ]; then
-    echo "❌ Error: Feature directory not found: $FEATURE_DIR" >&2
-    echo "💡 Tip: Run /feature:specify $FEATURE_ID first" >&2
-    exit 1
+# Check feature directory and spec.md existence
+HAS_FEATURE_DIR="false"
+HAS_SPEC_FILE="false"
+NEEDS_STANDALONE_PROMPT="false"
+
+if [ -d "$FEATURE_DIR" ]; then
+    HAS_FEATURE_DIR="true"
 fi
 
-# Validate spec.md exists
-if [ ! -f "$SPEC_FILE" ]; then
-    echo "❌ Error: spec.md not found: $SPEC_FILE" >&2
-    echo "💡 Tip: Run /feature:specify $FEATURE_ID first" >&2
-    exit 1
+if [ -f "$SPEC_FILE" ]; then
+    HAS_SPEC_FILE="true"
+fi
+
+# Auto-detect: if no spec but not explicitly standalone, signal AI to ask user
+if [ "$STANDALONE_MODE" != "true" ] && [ "$HAS_SPEC_FILE" != "true" ]; then
+    NEEDS_STANDALONE_PROMPT="true"
+    # Create feature dir for output files
+    if [ ! -d "$FEATURE_DIR" ]; then
+        mkdir -p "$FEATURE_DIR"
+        HAS_FEATURE_DIR="true"
+    fi
+fi
+
+# If explicit standalone mode, ensure dir exists
+if [ "$STANDALONE_MODE" == "true" ] && [ ! -d "$FEATURE_DIR" ]; then
+    mkdir -p "$FEATURE_DIR"
+    HAS_FEATURE_DIR="true"
 fi
 
 # Check existing files
@@ -167,9 +194,12 @@ cat <<EOF
   "PLAN_FILE": "$(json_escape "$PLAN_FILE")",
   "UT_RULES_FILE": "$(json_escape "$UT_RULES_FILE")",
   "HAS_UT_RULES": $HAS_UT_RULES,
+  "HAS_SPEC_FILE": $HAS_SPEC_FILE,
+  "NEEDS_STANDALONE_PROMPT": $NEEDS_STANDALONE_PROMPT,
   "EXISTING_FILES": "$(json_escape "$EXISTING_FILES")",
   "MODE": "$MODE",
   "REVIEW_MODE": $REVIEW_MODE,
-  "FORCE_MODE": $FORCE_MODE
+  "FORCE_MODE": $FORCE_MODE,
+  "STANDALONE_MODE": $STANDALONE_MODE
 }
 EOF
