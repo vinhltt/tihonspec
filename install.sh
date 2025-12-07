@@ -426,21 +426,27 @@ install_claude() {
 
   local count=0
 
-  for folder in feature ut project; do
-    if [[ -d "$source_base/$folder" ]]; then
-      ensure_dir "$target_base/$folder"
-      local folder_count=0
-      for file in "$source_base/$folder"/*.md; do
-        [[ ! -f "$file" ]] && continue
-        local name
-        name=$(basename "$file")
-        cp "$file" "$target_base/$folder/$name" || die "Failed to copy: $file"
-        folder_count=$((folder_count + 1))
-      done
-      if [[ $folder_count -gt 0 ]]; then
-        log_success "  ✓ $folder/ ($folder_count files)"
-        count=$((count + folder_count))
-      fi
+  # Dynamically find and install ALL command folders
+  for cmd_folder in "$source_base"/*/; do
+    [[ ! -d "$cmd_folder" ]] && continue
+
+    local folder_name
+    folder_name=$(basename "$cmd_folder")
+
+    ensure_dir "$target_base/$folder_name"
+    local folder_count=0
+
+    for file in "$cmd_folder"*.md; do
+      [[ ! -f "$file" ]] && continue
+      local name
+      name=$(basename "$file")
+      cp "$file" "$target_base/$folder_name/$name" || die "Failed to copy: $file"
+      folder_count=$((folder_count + 1))
+    done
+
+    if [[ $folder_count -gt 0 ]]; then
+      log_success "  ✓ $folder_name/ ($folder_count files)"
+      count=$((count + folder_count))
     fi
   done
 
@@ -463,22 +469,26 @@ install_github() {
 
   local count=0
 
-  for folder in feature ut project; do
-    if [[ -d "$source_base/$folder" ]]; then
-      for file in "$source_base/$folder"/*.md; do
-        [[ ! -f "$file" ]] && continue
-        local name
-        name=$(basename "$file" .md)
-        local dest_name
-        if [[ -n "$PREFIX" ]]; then
-          dest_name="$PREFIX.$folder.$name.prompt.md"
-        else
-          dest_name="$folder.$name.prompt.md"
-        fi
-        cp "$file" "$target_base/$dest_name" || die "Failed to copy: $file"
-        count=$((count + 1))
-      done
-    fi
+  # Dynamically find and install ALL command folders
+  for cmd_folder in "$source_base"/*/; do
+    [[ ! -d "$cmd_folder" ]] && continue
+
+    local folder_name
+    folder_name=$(basename "$cmd_folder")
+
+    for file in "$cmd_folder"*.md; do
+      [[ ! -f "$file" ]] && continue
+      local name
+      name=$(basename "$file" .md)
+      local dest_name
+      if [[ -n "$PREFIX" ]]; then
+        dest_name="$PREFIX.$folder_name.$name.prompt.md"
+      else
+        dest_name="$folder_name.$name.prompt.md"
+      fi
+      cp "$file" "$target_base/$dest_name" || die "Failed to copy: $file"
+      count=$((count + 1))
+    done
   done
 
   log_success "$provider: $count files installed"

@@ -160,17 +160,26 @@ validate_environment() {
   # Check source directory exists
   [[ -d "$SOURCE_DIR" ]] || die "Source directory not found: $SOURCE_DIR"
 
-  # Check feature and ut subdirectories
-  [[ -d "$SOURCE_DIR/feature" ]] || die "Feature commands not found: $SOURCE_DIR/feature"
-  [[ -d "$SOURCE_DIR/ut" ]] || die "UT commands not found: $SOURCE_DIR/ut"
+  # Count command folders and files dynamically
+  local folder_count=0
+  local total_count=0
 
-  # Count source files
-  local feature_count
-  local ut_count
-  feature_count=$(find "$SOURCE_DIR/feature" -name "*.md" | wc -l | tr -d ' ')
-  ut_count=$(find "$SOURCE_DIR/ut" -name "*.md" | wc -l | tr -d ' ')
+  for cmd_folder in "$SOURCE_DIR"/*/; do
+    [[ ! -d "$cmd_folder" ]] && continue
+    folder_count=$((folder_count + 1))
 
-  log_info "Found $feature_count feature commands, $ut_count UT commands"
+    local folder_name
+    folder_name=$(basename "$cmd_folder")
+    local file_count
+    file_count=$(find "$cmd_folder" -maxdepth 1 -name "*.md" | wc -l | tr -d ' ')
+    total_count=$((total_count + file_count))
+
+    log_info "  Found $file_count $folder_name commands"
+  done
+
+  [[ $folder_count -eq 0 ]] && die "No command folders found in: $SOURCE_DIR"
+
+  log_info "Total: $total_count commands in $folder_count folders"
 }
 
 # =============================================================================
@@ -323,8 +332,9 @@ EOF
 # =============================================================================
 
 # Install Claude Code commands (nested subfolder structure)
-# With prefix: .claude/commands/{prefix}/feature/*.md
-# Without prefix: .claude/commands/feature/*.md
+# Dynamically installs ALL command folders from .tihonspec/commands/
+# With prefix: .claude/commands/{prefix}/{folder}/*.md
+# Without prefix: .claude/commands/{folder}/*.md
 install_claude() {
   local provider="Claude Code"
   log_info "Installing $provider commands..."
@@ -342,38 +352,29 @@ install_claude() {
 
   local count=0
 
-  # Install feature commands: feature/*.md → {prefix}/feature/*.md
-  log_info "  Installing feature commands..."
-  ensure_dir "$target_base/feature"
-  for file in "$SOURCE_DIR/feature"/*.md; do
-    [[ ! -f "$file" ]] && continue
+  # Dynamically find and install ALL command folders
+  for cmd_folder in "$SOURCE_DIR"/*/; do
+    [[ ! -d "$cmd_folder" ]] && continue
 
-    local name
-    name=$(basename "$file")
-    cp "$file" "$target_base/feature/$name" || die "Failed to copy: $file"
-    if [[ -n "$PREFIX" ]]; then
-      log_success "    ✓ $PREFIX/feature/$name"
-    else
-      log_success "    ✓ feature/$name"
-    fi
-    count=$((count + 1))
-  done
+    local folder_name
+    folder_name=$(basename "$cmd_folder")
 
-  # Install UT commands: ut/*.md → {prefix}/ut/*.md
-  log_info "  Installing UT commands..."
-  ensure_dir "$target_base/ut"
-  for file in "$SOURCE_DIR/ut"/*.md; do
-    [[ ! -f "$file" ]] && continue
+    log_info "  Installing $folder_name commands..."
+    ensure_dir "$target_base/$folder_name"
 
-    local name
-    name=$(basename "$file")
-    cp "$file" "$target_base/ut/$name" || die "Failed to copy: $file"
-    if [[ -n "$PREFIX" ]]; then
-      log_success "    ✓ $PREFIX/ut/$name"
-    else
-      log_success "    ✓ ut/$name"
-    fi
-    count=$((count + 1))
+    for file in "$cmd_folder"*.md; do
+      [[ ! -f "$file" ]] && continue
+
+      local name
+      name=$(basename "$file")
+      cp "$file" "$target_base/$folder_name/$name" || die "Failed to copy: $file"
+      if [[ -n "$PREFIX" ]]; then
+        log_success "    ✓ $PREFIX/$folder_name/$name"
+      else
+        log_success "    ✓ $folder_name/$name"
+      fi
+      count=$((count + 1))
+    done
   done
 
   log_success "$provider: $count files installed"
@@ -381,8 +382,9 @@ install_claude() {
 }
 
 # Install GitHub Copilot commands (flat structure with .prompt suffix)
-# With prefix: {prefix}.feature.*.prompt.md, {prefix}.ut.*.prompt.md
-# Without prefix: feature.*.prompt.md, ut.*.prompt.md
+# Dynamically installs ALL command folders from .tihonspec/commands/
+# With prefix: {prefix}.{folder}.*.prompt.md
+# Without prefix: {folder}.*.prompt.md
 install_github() {
   local provider="GitHub Copilot"
   log_info "Installing $provider commands..."
@@ -399,40 +401,30 @@ install_github() {
 
   local count=0
 
-  # Install feature commands: feature/*.md → {prefix}.feature.*.prompt.md
-  log_info "  Installing feature commands..."
-  for file in "$SOURCE_DIR/feature"/*.md; do
-    [[ ! -f "$file" ]] && continue
+  # Dynamically find and install ALL command folders
+  for cmd_folder in "$SOURCE_DIR"/*/; do
+    [[ ! -d "$cmd_folder" ]] && continue
 
-    local name
-    name=$(basename "$file" .md)
-    local dest_name
-    if [[ -n "$PREFIX" ]]; then
-      dest_name="$PREFIX.feature.$name.prompt.md"
-    else
-      dest_name="feature.$name.prompt.md"
-    fi
-    cp "$file" "$target_base/$dest_name" || die "Failed to copy: $file"
-    log_success "    ✓ $dest_name"
-    count=$((count + 1))
-  done
+    local folder_name
+    folder_name=$(basename "$cmd_folder")
 
-  # Install UT commands: ut/*.md → {prefix}.ut.*.prompt.md (flatten)
-  log_info "  Installing UT commands..."
-  for file in "$SOURCE_DIR/ut"/*.md; do
-    [[ ! -f "$file" ]] && continue
+    log_info "  Installing $folder_name commands..."
 
-    local name
-    name=$(basename "$file" .md)
-    local dest_name
-    if [[ -n "$PREFIX" ]]; then
-      dest_name="$PREFIX.ut.$name.prompt.md"
-    else
-      dest_name="ut.$name.prompt.md"
-    fi
-    cp "$file" "$target_base/$dest_name" || die "Failed to copy: $file"
-    log_success "    ✓ $dest_name"
-    count=$((count + 1))
+    for file in "$cmd_folder"*.md; do
+      [[ ! -f "$file" ]] && continue
+
+      local name
+      name=$(basename "$file" .md)
+      local dest_name
+      if [[ -n "$PREFIX" ]]; then
+        dest_name="$PREFIX.$folder_name.$name.prompt.md"
+      else
+        dest_name="$folder_name.$name.prompt.md"
+      fi
+      cp "$file" "$target_base/$dest_name" || die "Failed to copy: $file"
+      log_success "    ✓ $dest_name"
+      count=$((count + 1))
+    done
   done
 
   log_success "$provider: $count files installed"
@@ -499,6 +491,15 @@ EOF
 providers:
 EOF
 
+  # Count total command files dynamically
+  local total_files=0
+  for cmd_folder in "$SOURCE_DIR"/*/; do
+    [[ ! -d "$cmd_folder" ]] && continue
+    local file_count
+    file_count=$(find "$cmd_folder" -maxdepth 1 -name "*.md" | wc -l | tr -d ' ')
+    total_files=$((total_files + file_count))
+  done
+
   # Append provider entries
   if [[ ${#PROVIDERS[@]} -eq 0 ]]; then
     log_warn "No providers installed. Manifest will be empty."
@@ -509,14 +510,14 @@ EOF
           cat >> "$manifest" <<EOF
   claude:
     enabled: true
-    files_count: 13
+    files_count: $total_files
 EOF
           ;;
         github)
           cat >> "$manifest" <<EOF
   github:
     enabled: true
-    files_count: 13
+    files_count: $total_files
 EOF
           ;;
       esac
