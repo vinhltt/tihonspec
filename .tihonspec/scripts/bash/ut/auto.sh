@@ -124,18 +124,18 @@ SPEC_FILE="$FEATURE_DIR/spec.md"
 PLAN_FILE="$FEATURE_DIR/test-plan.md"
 UT_RULES_FILE="$OUTPUT_ROOT/$OUTPUT_DOCS_PATH/rules/test/ut-rule.md"
 
-# Validate feature directory exists
+# Auto-create feature directory if not exists (for UT-only tasks)
+CREATED_FEATURE_DIR="false"
 if [ ! -d "$FEATURE_DIR" ]; then
-    echo "❌ Error: Feature directory not found: $FEATURE_DIR" >&2
-    echo "💡 Tip: Run /feature:specify $FEATURE_ID first" >&2
-    exit 1
+    mkdir -p "$FEATURE_DIR"
+    CREATED_FEATURE_DIR="true"
+    echo "📁 Created feature directory: $FEATURE_DIR" >&2
 fi
 
-# Validate spec.md exists
-if [ ! -f "$SPEC_FILE" ]; then
-    echo "❌ Error: spec.md not found: $SPEC_FILE" >&2
-    echo "💡 Tip: Run /feature:specify $FEATURE_ID first" >&2
-    exit 1
+# Check spec.md exists (optional for UT-only tasks)
+HAS_SPEC="false"
+if [ -f "$SPEC_FILE" ]; then
+    HAS_SPEC="true"
 fi
 
 # Check existing artifacts (YAGNI: only ut-rules and test-plan)
@@ -159,6 +159,8 @@ cat <<EOF
   "SPEC_FILE": "$(json_escape "$SPEC_FILE")",
   "PLAN_FILE": "$(json_escape "$PLAN_FILE")",
   "UT_RULES_FILE": "$(json_escape "$UT_RULES_FILE")",
+  "CREATED_FEATURE_DIR": $CREATED_FEATURE_DIR,
+  "HAS_SPEC": $HAS_SPEC,
   "HAS_UT_RULES": $HAS_UT_RULES,
   "HAS_PLAN": $HAS_PLAN,
   "SKIP_RUN": $SKIP_RUN,

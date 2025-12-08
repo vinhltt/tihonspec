@@ -6,6 +6,29 @@ Run the complete UT workflow automatically: plan -> generate -> run tests. Singl
 
 ---
 
+## ⚠️ CRITICAL: Workflow Rules
+
+**AUTO-CREATE BEHAVIOR** (for UT-only tasks):
+- Feature directory not found → **Auto-created** by script
+- spec.md not found → **Optional** - continue without it (use user prompt for context)
+
+**MANDATORY STOP CONDITIONS** - When any of these errors occur, you MUST:
+1. **STOP immediately** - Do NOT proceed to next step
+2. **Report the error** to user with the suggested fix
+
+| Error | Required Action |
+|-------|-----------------|
+| Script returns non-zero exit | STOP → Report error message to user |
+| JSON parse fails | STOP → Report script output to user |
+| Sub-workspace not found | STOP → Show available sub-workspaces |
+
+**MANDATORY SEQUENCE** - Do NOT skip steps:
+1. Run script → Get JSON output
+2. If no spec.md and no ut-plan.md → **Create ut-plan.md first** based on user prompt
+3. Then proceed to generate tests
+
+---
+
 ## Usage
 
 ```bash
@@ -70,7 +93,20 @@ bash .tihonspec/scripts/bash/ut/auto.sh <feature-id>
 
 Parse JSON output -> Store paths and flags
 
-If error -> STOP and report to user
+**⚠️ VALIDATE OUTPUT (MANDATORY):**
+```
+IF script exit code != 0 OR output contains "❌ Error":
+  → STOP IMMEDIATELY
+  → Report error message to user
+  → DO NOT proceed to any later steps
+
+IF CREATED_FEATURE_DIR == true:
+  → Note: Feature folder was auto-created (UT-only task)
+
+IF HAS_SPEC == false AND HAS_PLAN == false:
+  → Must create ut-plan.md first using user's prompt as context
+  → DO NOT skip to writing tests directly
+```
 
 ---
 
@@ -204,11 +240,15 @@ Next Steps:
 
 ## Error Handling
 
-| Phase | Error | Action |
-|-------|-------|--------|
-| Plan | spec.md missing | STOP - Run /feature:specify first |
+| Phase | Condition | Action |
+|-------|-----------|--------|
+| **Step 0** | Feature directory not found | Auto-create folder, continue |
+| **Step 0** | spec.md not found | Continue - use user prompt for context |
+| **Step 0** | Sub-workspace not found | **STOP** - Show available sub-workspaces |
+| **Step 0** | Script non-zero exit | **STOP** - Report error, do NOT continue |
+| Plan | No spec.md AND no ut-plan.md | Create ut-plan.md from user prompt first |
 | Plan | templates missing | STOP - Check .tihonspec/templates/ut/ |
-| Generate | ut-plan.md missing | STOP - Plan phase failed |
+| Generate | ut-plan.md missing | Run ut:plan first (auto-created) |
 | Run | Tests fail | Report failures, continue |
 | Run | Command not found | Suggest installing test framework |
 
