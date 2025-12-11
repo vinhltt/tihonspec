@@ -1,8 +1,18 @@
-# /ut:create-rules - Create Sub-Workspace UT Standards
+# /ut:create-rules - Create/Update Sub-Workspace UT Standards
 
 ## Purpose
 
-Generate sub-workspace-wide unit testing standards (`ut-rule.md`). One-time setup defining conventions, coverage, mocking.
+Generate or update sub-workspace-wide unit testing standards (`ut-rule.md`). Initial setup or refresh when codebase patterns change.
+
+## Usage
+
+```
+/ut:create-rules [--sub-workspace NAME] [--update]
+```
+
+**Flags**:
+- `--sub-workspace NAME`: Target specific sub-workspace
+- `--update`: Update existing rules (skip prompts, show comparison)
 
 ---
 
@@ -19,10 +29,11 @@ Creates `{OUTPUT_ROOT}/{OUTPUT_DOCS_PATH}/rules/test/ut-rule.md`
 
 ### Step 0: Parse Arguments & Sub-Workspace Selection
 
-**Parse user input for sub-workspace targeting**:
-1. Check if `--sub-workspace NAME` in command args
-2. Check if user mentions sub-workspace name in natural language (e.g., "for sub-workspace frontend")
-3. If multi-sub-workspace workspace detected (SUB_WORKSPACES array not empty) and no sub-workspace specified:
+**Parse user input**:
+1. Check if `--update` flag in command args → Store `UPDATE_MODE = true`
+2. Check if `--sub-workspace NAME` in command args
+3. Check if user mentions sub-workspace name in natural language (e.g., "for sub-workspace frontend")
+4. If multi-sub-workspace workspace detected (SUB_WORKSPACES array not empty) and no sub-workspace specified:
    - Ask user: "Which sub-workspace?" with AskUserQuestion
    - Options: List from SUB_WORKSPACES[].name
 
@@ -43,7 +54,17 @@ bash .tihonspec/scripts/bash/ut/create-rules.sh
 
 **On success only**: Parse JSON output → Store `RULES_FILE`, `TEMPLATE_FILE`, `MODE`, `OUTPUT_ROOT`, `SUB_WORKSPACES`
 
-If `MODE` = "exists" → Ask: Update / Replace / Cancel
+**Handle existing rules**:
+- If `UPDATE_MODE = true` AND `MODE != "exists"`:
+  - Error: "No existing ut-rule.md found. Run without --update to create."
+  - STOP
+- If `MODE = "exists"` AND `UPDATE_MODE = false`:
+  - Ask via AskUserQuestion: "ut-rule.md already exists"
+    - **Update**: Show comparison, replace if confirmed
+    - **Replace**: Skip comparison, regenerate from scratch
+    - **Cancel**: Stop execution
+- If `MODE = "exists"` AND `UPDATE_MODE = true`:
+  - Proceed directly to update flow (skip prompt)
 
 ---
 
@@ -148,12 +169,53 @@ If `MODE` = "exists" → Ask: Update / Replace / Cancel
 
 ### Step 6: Save & Confirm
 
+**If UPDATE mode** (user selected "Update" OR `--update` flag):
+
+1. Read existing `{RULES_FILE}` content
+2. Extract key fields from existing rules:
+   - Framework name & version
+   - File pattern
+   - Coverage target
+   - Test file count (from Glob)
+3. Show comparison table:
+
+```
+📊 UT Rules Comparison
+┌─────────────────┬──────────────────┬──────────────────┐
+│ Field           │ Current          │ Detected         │
+├─────────────────┼──────────────────┼──────────────────┤
+│ Framework       │ {current}        │ {detected}       │
+│ File Pattern    │ {current}        │ {detected}       │
+│ Coverage Target │ {current}        │ {detected}       │
+│ Test Files      │ {current_count}  │ {detected_count} │
+└─────────────────┴──────────────────┴──────────────────┘
+
+{If differences found}:
+⚠️  Changes detected: {list changed fields}
+```
+
+4. Ask via AskUserQuestion: "Replace existing rules with new version?"
+   - **Yes**: Proceed to save
+   - **No**: Cancel, keep existing
+
+**If CREATE mode** (new file):
+
 1. Preview first 30 lines
 2. Confirm → Write to `{RULES_FILE}`
 
+**Save**:
+- Write generated content to `{RULES_FILE}`
+- Update "Last Updated" date in file
+
 **Output**:
 ```
-UT Rules created: {RULES_FILE}
+# If created:
+✅ UT Rules created: {RULES_FILE}
+
+# If updated:
+✅ UT Rules updated: {RULES_FILE}
+   Changed: {list of changed fields}
+
 Language: {language}
 Framework: {name} {version}
 Next: /ut:plan {feature-id}
